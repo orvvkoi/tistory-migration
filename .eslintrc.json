@@ -1,0 +1,42 @@
+{
+    "parser": "@babel/eslint-parser",
+    "parserOptions": {
+        "ecmaVersion": 12,
+        "requireConfigFile": false
+    },
+    "extends": ["eslint:recommended", "airbnb", "plugin:prettier/recommended"],
+    "ignorePatterns": ["dist", "node_modules"],
+    "rules": {
+        "prettier/prettier": "error",
+        "import/no-extraneous-dependencies": "off",
+        "import/extensions": "off",
+        "import/no-unresolved": "off",
+        "react/jsx-filename-extension": [
+            "error",
+            {
+                "extensions": [".js", ".jsx"]
+            }
+        ],
+        "no-console": "off",
+        "indent": ["error", 4],
+        "semi": ["error", "always"],
+        "quotes": ["off", "single"],
+        "comma-dangle": [
+            "error",
+            {
+                "arrays": "never",
+                "objects": "never",
+                "imports": "never",
+                "exports": "never",
+                "functions": "never"
+            }
+        ],
+        "arrow-body-style": "off",
+        "prefer-arrow-callback": "off"
+    },
+    "env": {
+        "browser": true,
+        "es6": true,
+        "node": true
+    }
+}

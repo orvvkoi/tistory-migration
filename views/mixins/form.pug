@@ -1,0 +1,9 @@
+mixin inputArray(...ids)
+  each id in ids
+    input(type="text", id=id, name=id, autocomplete="off")
+
+mixin inputText(id, val='')
+  input(type="text", id=id, name=id, value=val, autocomplete="off")&attributes(attributes)
+
+mixin form(id, action, method='get')
+  form(id=id, name=id, action=action, method=method)
