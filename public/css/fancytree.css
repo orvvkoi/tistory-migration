@@ -1,0 +1,50 @@
+span.drag-source {
+    border: 1px solid grey;
+    border-radius: 3px;
+    padding: 2px;
+    background-color: silver;
+}
+
+ul.fancytree-container {
+    max-height: 600px;
+    overflow-y: scroll;
+    width: 48%;
+    display: inline-block;
+    padding:8px !important;
+}
+#tree ul.fancytree-container {
+    float: left;
+}
+
+span.fancytree-node.fancytree-drag-source {
+    outline: 1px dotted grey;
+}
+span.fancytree-node.fancytree-drop-accept {
+    outline: 1px dotted green;
+}
+span.fancytree-node.fancytree-drop-reject {
+    outline: 1px dotted red;
+}
+
+span.trashcan {
+    border: 1px solid #f5c6cb;
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 1px 3px;
+}
+span.fancytree-node span.fancytree-title span.fancytree-childcounter {
+    color: #fff;
+    background: #337ab7;
+    border: 1px solid gray;
+    border-radius: 10px;
+    padding: 2px;
+    text-align: center;
+    position: relative;
+    top: -6px;
+    right: -6px;
+}
+
+span.fancytree-selected .fancytree-title {
+    border: 1px dashed #eaa06c;
+    border-radius: 0;
+}
