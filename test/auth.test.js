@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('src/server/index');
+const app = require('@server/index.js.bak');
 const TistoryController = require('src/server/migration/controllers/TistoryController');
 
 beforeEach((done) => {

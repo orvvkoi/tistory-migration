@@ -1,16 +1,23 @@
-import CryptoUtils from '@server/utils/CryptoUtils';
-import redis from "@server/redis/redis-server";
+import CryptoUtils from '../../utils/CryptoUtils';
+import {Logger} from "winston";
+import {Container} from "typedi";
 
 const { COOKIE_SCHEME } = process.env;
 
-const MigrationMiddleware = async (req, res, next) => {
+const middleware = async (req, res, next) => {
+
+    const logger: Logger = Container.get('logger');
+    const redis: any = Container.get('redis');
+
     const token = req.cookies[COOKIE_SCHEME];
     const url = req.originalUrl;
 
     try {
-
-        console.log("url ", url, req.url)
         if(url.includes(process.env.WEB_MIGRATION_PATH)) {
+            logger.debug('migration middleware token: %o', token);
+            logger.debug('migration middleware token: %o', req.body);
+            logger.debug('migration middleware token: %o', req.params);
+            logger.debug('migration middleware token: %o', req.query);
             const { clientId } = token ? CryptoUtils.decrypt(token) : '';
 
             if(clientId) {
@@ -25,14 +32,14 @@ const MigrationMiddleware = async (req, res, next) => {
                         res.redirect(process.env.WEB_MIGRATION_PATH);
                     }*/
                     res.clearCookie(process.env.COOKIE_SCHEME);
-                    res.redirect(process.env.WEB_MIGRATION_PATH);
+                    return res.redirect(process.env.WEB_MIGRATION_PATH);
                 }
 
             } else {
                 if(url !== process.env.WEB_MIGRATION_PATH
                     && url !== process.env.WEB_MIGRATION_PATH + "/") {
 
-                    res.status(400).send('Error validating token. Session has expired');
+                //    return res.status(400).send('Error validating token. Session has expired');
                 }
             }
         }
@@ -44,4 +51,4 @@ const MigrationMiddleware = async (req, res, next) => {
 
 };
 
-export default MigrationMiddleware;
+export default middleware;
