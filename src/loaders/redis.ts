@@ -1,11 +1,16 @@
 import redis from 'redis';
 import util from 'util';
+import config from '../config';
 
 // create and connect redis client to local instance.
 const client = redis.createClient({
-    port: process.env.REDIS_PORT, // The port number to connect to.
-    host: process.env.REDIS_IP, // The hostname of the database you are connecting to.
-    password: process.env.REDIS_PASS // The password for redis database.
+    port: config.redisPort, // The port number to connect to.
+    host: config.redisIP, // The hostname of the database you are connecting to.
+    password: config.redisPass // The password for redis database.
+});
+
+client.on("ready", () => {
+    console.log("Redis is ready");
 });
 
 client.on('connect', () => {

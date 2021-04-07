@@ -80,12 +80,12 @@ $(function() {
 
             if(nodeData.isEmpty === "false") {
                 data.result =  $.Deferred((dfd) => {
-                    let req = UTIL.ajax.get("/migration/categories", {uniqueKey: nodeData.uniqueKey});
+                    let req = UTIL.ajax.get("/api/migration/categories", {uniqueKey: nodeData.uniqueKey});
                     req.done((res) => {
                         if(res && res.length) {
                             dfd.resolve(res);
                         } else {
-                            let postReq = UTIL.ajax.get("/migration/posts", {uniqueKey: nodeData.uniqueKey});
+                            let postReq = UTIL.ajax.get("/api/migration/posts", {uniqueKey: nodeData.uniqueKey});
                             postReq.done(dfd.resolve).fail(dfd.reject);
                         }
                     }).fail(err => {
@@ -94,7 +94,7 @@ $(function() {
                 });
             } else {
                 data.result = {
-                    url: "/migration/posts",
+                    url: "/api/migration/posts",
                     data: {
                         uniqueKey: nodeData.uniqueKey
                     },
@@ -333,7 +333,7 @@ $(function() {
                     targetUniqueKey : node.data.uniqueKey
                 };
 
-                progressRequest = UTIL.ajax.post("/migration/progress", data);
+                progressRequest = UTIL.ajax.post("/api/migration/progress", data);
 
                 progressRequest.done((res) => {
                     _this.setType("green");
@@ -545,7 +545,7 @@ $(function() {
 
     let _TREE_OPTION = {
         extensions: ["dnd5", "multi", "glyph", "childcounter"],
-        source: { url: "/migration/blogs", cache: true},
+        source: { url: "/api/migration/blogs", cache: true},
         checkbox: true,
         selectMode:3,
         clickFolderMode:3,

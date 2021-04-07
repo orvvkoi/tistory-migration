@@ -5,23 +5,49 @@ if (!window['UTIL']) window['UTIL'] = {};
 
     UTIL.ajax = (() => {
         const context = {
-            get: (url, params) => {
-                if (params) {
-                    return $.get(url, params);
-                } else {
-                    return $.get(url);
-                }
+            get: function(url, params)  {
+                return this.ajax({
+                    type: 'get',
+                    url: url,
+                    data: params
+                });
             },
-            post: (url, params) => {
-                if (params) {
-                    return $.post(url, params);
-                } else {
-                    return $.post(url);
+            post: function(url, params)  {
+                return this.ajax({
+                    type: 'post',
+                    url: url,
+                    data: params
+                });
+            },
+            put: function(url, params)  {
+                return this.ajax({
+                    type: 'put',
+                    url: url,
+                    data: params
+                });
+            },
+            delete: function(url, params) {
+                return this.ajax({
+                    type: 'delete',
+                    url: url,
+                    data: params
+                });
+            },
+            ajax: (options) => {
+                let ajaxOption = {
+                    type: 'post',
+                    cache: false,
+                    dataType: "json",
+                    contentType: "application/json; charset=utf-8"
                 }
 
-            },
-            send: (opts) => {
-                return $.ajax(opts);
+                if (['post', 'put', 'delete'].includes(options.type)) {
+                    options.data = JSON.stringify(options.data);
+                }
+
+                ajaxOption = $.extend(ajaxOption, options);
+
+                return $.ajax(ajaxOption);
             }
         };
 

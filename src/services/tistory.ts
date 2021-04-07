@@ -1,4 +1,4 @@
-import RequestUtils from '@server/utils/RequestUtils';
+import RequestUtils from '../utils/RequestUtils';
 
 const tistoryJsonParser = (res) => {
     const data =
@@ -84,7 +84,7 @@ const setPost = async (
     return data;
 };
 
-const TistoryController = {
+const Tistory = {
     getBlogInfo,
     getCategoryList,
     getPostList,
@@ -92,4 +92,4 @@ const TistoryController = {
     setPost
 };
 
-export default TistoryController;
+export default Tistory;
