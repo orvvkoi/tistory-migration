@@ -3,12 +3,11 @@ import auth from './routes/auth';
 import migration from './routes/migration';
 
 export default () => {
-    const app = Router();
+  const app = Router();
 
-    // Linking all the routes
-    auth(app);
-    migration(app);
+  // Linking all the routes
+  auth(app);
+  migration(app);
 
-    return app;
-}
-
+  return app;
+};

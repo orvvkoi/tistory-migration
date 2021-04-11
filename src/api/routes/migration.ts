@@ -1,156 +1,149 @@
 import { Router, Request, Response, NextFunction } from 'express';
 
+import { Container, Inject } from 'typedi';
+import { celebrate, Joi, Segments } from 'celebrate';
+import { Logger } from 'winston';
 import middlewares from '../middlewares';
-import Tistory from "../../services/tistory";
-import {Container} from "typedi";
-import AuthService from "../../services/auth";
+import OAuthService from '../../services/tistory.auth';
 import MigrationService from '../../services/migration';
-import {IAuth} from "../../interfaces/IAuth";
-import {celebrate, Joi, Segments} from "celebrate";
-import config from "../../config";
-import {Logger} from "winston";
+import { IMigration } from '../../interfaces/IMigration';
+import config from '../../config';
 
 const route = Router();
 
 export default (app) => {
-    app.use('/migration', route);
+  app.use('/migration', route);
 
-    route.get(
-'/',
-        middlewares.migrationMiddleware,
-        celebrate({
-            [Segments.COOKIES]: Joi.object({
-                [config.authTokenName]: Joi.string()
-            }).unknown()
-        }),
-        async (req: Request, res: Response) => {
-            try {
+  route.get(
+    '/',
+    middlewares.isAuth,
+    middlewares.migrationMiddleware,
+    celebrate({
+      [Segments.COOKIES]: Joi.object({
+        [config.tempForAuthCookieName]: Joi.string(),
+      }).unknown(),
+    }),
+    async (req: Request, res: Response) => {
+      try {
 
-                if (!req.mainClientId) {
-                    return res.render('index', { step: 1 });
-                }
+        console.log(`test req.session.id ||||||${config.jwtSecret}|||||||${config.jwtAlgorithm}||||||||`);
+        console.log("test req.session.id ", req.session.id);
+        console.log("test req.token ", req[config.authProperty]);
 
-                const storageData = req.storageData;
-
-                const storages = Object.values(storageData).filter((storage: any) => storage.accessToken);
-
-                if (storages.length) {
-                    res.render('index', {
-                        step: 3,
-                        storages,
-                    });
-                } else {
-                    res.render('index', { step: 1 });
-                }
-            } catch(e) {
-                res.render('index', { step: 1 });
-            }
+        if (!req.storageId) {
+          return res.render('index', { step: 1 });
         }
-    );
 
-    route.get(
-'/blogs',
-        middlewares.migrationMiddleware,
-        async (req: Request, res: Response, next: NextFunction) => {
-            const logger: Logger = Container.get('logger');
+        const { storageData } = req;
 
-            try {
-                const auth: IAuth = {...req.query, ...{storageData: req.storageData}};
+        const storages = Object.values(storageData).filter((storage: any) => storage.accessToken);
 
-                const migrationServiceInstance = Container.get(MigrationService);
-
-                const blogs = await migrationServiceInstance.getBlogList(auth);
-
-                res.json(blogs);
-            } catch (e) {
-                logger.error('🔥 error: %o', e);
-                return next(e);
-            }
-
+        if (storages.length) {
+          res.render('index', {
+            step: 3,
+            storages,
+          });
+        } else {
+          res.render('index', { step: 1 });
         }
-    );
+      } catch (e) {
+        res.render('index', { step: 1 });
+      }
+    },
+  );
 
-    route.get(
-        '/categories',
-        middlewares.migrationMiddleware,
-        celebrate({
-            [Segments.QUERY]: Joi.object({
-                uniqueKey: Joi.string().required()
-            }).unknown()
-        }),
-        async (req: Request, res: Response, next: NextFunction) => {
-            const logger: Logger = Container.get('logger');
+  route.get('/blogs', middlewares.migrationMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+    const logger: Logger = Container.get('logger');
 
-            try {
-                const auth: IAuth = {...req.query, ...{storageData: req.storageData}};
+    try {
+      const auth: IMigration = { ...req.query, ...{ storageData: req.storageData } };
 
-                const migrationServiceInstance = Container.get(MigrationService);
-                const categories = await migrationServiceInstance.getCategoryList(auth);
+      const migrationServiceInstance = Container.get(MigrationService);
 
-                res.json(categories);
-            } catch (e) {
-                logger.error('🔥 error: %o', e);
-                return next(e);
-            }
+      const blogs = await migrationServiceInstance.getBlogList(auth);
 
-        }
-    );
+      res.json(blogs);
+    } catch (e) {
+      logger.error('🔥 error: %o', e);
+      return next(e);
+    }
+  });
 
-    route.get(
-        '/posts',
-        middlewares.migrationMiddleware,
-        celebrate({
-            [Segments.QUERY]: Joi.object({
-                uniqueKey: Joi.string().required()
-            }).unknown()
-        }),
-        async (req: Request, res: Response, next: NextFunction) => {
-            const logger: Logger = Container.get('logger');
+  route.get(
+    '/categories',
+    middlewares.migrationMiddleware,
+    celebrate({
+      [Segments.QUERY]: Joi.object({
+        uniqueKey: Joi.string().required(),
+      }).unknown(),
+    }),
+    async (req: Request, res: Response, next: NextFunction) => {
+      const logger: Logger = Container.get('logger');
 
-            try {
-                const auth: IAuth = {...req.query, ...{storageData: req.storageData}};
+      try {
+        const auth: IMigration = { ...req.query, ...{ storageData: req.storageData } };
 
-                const migrationServiceInstance = Container.get(MigrationService);
-                const posts = await migrationServiceInstance.getPostList(auth);
+        const migrationServiceInstance = Container.get(MigrationService);
+        const categories = await migrationServiceInstance.getCategoryList(auth);
 
-                res.json(posts);
-            } catch (e) {
-                logger.error('🔥 error: %o', e);
-                return next(e);
-            }
+        res.json(categories);
+      } catch (e) {
+        logger.error('🔥 error: %o', e);
+        return next(e);
+      }
+    },
+  );
 
-        }
-    );
+  route.get(
+    '/posts',
+    middlewares.migrationMiddleware,
+    celebrate({
+      [Segments.QUERY]: Joi.object({
+        uniqueKey: Joi.string().required(),
+      }).unknown(),
+    }),
+    async (req: Request, res: Response, next: NextFunction) => {
+      const logger: Logger = Container.get('logger');
 
-    route.post(
-        '/progress',
-        middlewares.migrationMiddleware,
-        celebrate({
-            [Segments.BODY]: Joi.object({
-                uniqueKeys: Joi.array().items(Joi.string()).required(),
-                targetUniqueKey: Joi.string().required()
-            })
-        }),
-        async (req: Request, res: Response, next: NextFunction) => {
-            const logger: Logger = Container.get('logger');
+      try {
+        const auth: IMigration = { ...req.query, ...{ storageData: req.storageData } };
 
-            try {
-                const auth: IAuth = {...req.body, ...{storageData: req.storageData}};
+        const migrationServiceInstance = Container.get(MigrationService);
+        const posts = await migrationServiceInstance.getPostList(auth);
 
-                auth.socketId = req.session.socketio as string;
+        res.json(posts);
+      } catch (e) {
+        logger.error('🔥 error: %o', e);
+        return next(e);
+      }
+    },
+  );
 
-                const migrationServiceInstance = Container.get(MigrationService);
-                const progress = await migrationServiceInstance.progress(auth);
+  route.post(
+    '/progress',
+    middlewares.migrationMiddleware,
+    celebrate({
+      [Segments.BODY]: Joi.object({
+        uniqueKeys: Joi.array().items(Joi.string()).required(),
+        targetUniqueKey: Joi.string().required(),
+      }),
+    }),
+    async (req: Request, res: Response, next: NextFunction) => {
+      const logger: Logger = Container.get('logger');
 
-                res.json(progress);
-            } catch (e) {
-                logger.error('🔥 error: %o', e);
-                return next(e);
-            }
+      try {
+        const auth: IMigration = { ...req.body, ...{ storageData: req.storageData } };
 
-        }
-    );
+        auth.socketId = req.session.socketId as string;
 
+        const migrationServiceInstance = Container.get(MigrationService);
+        const progress = await migrationServiceInstance.progress(auth);
 
-}
-
+        res.json(progress);
+      } catch (e) {
+        logger.error('🔥 error: %o', e);
+        return next(e);
+      }
+    },
+  );
+};

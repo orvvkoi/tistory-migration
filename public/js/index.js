@@ -1,5 +1,27 @@
+var openDialog = function(uri, name, options, closeCallback) {
+    var win = window.open(uri, name, options);
+    var interval = window.setInterval(function() {
+        try {
+            if (win == null || win.closed) {
+                window.clearInterval(interval);
+                closeCallback(win);
+            }
+        }
+        catch (e) {
+        }
+    }, 1000);
+    return win;
+}
+
 $(function() {
     const socket = io();
+
+    socket.on('connection:sid', function(socketId) {
+        // Set socketId to your cookies, or global variable
+        console.log("socketId ", socketId);
+
+      //  sessionStorage.setItem('SID', socketId);
+    });
 
     socket.on("auth_status", function(response) {
         if(response) {
@@ -60,6 +82,7 @@ $(function() {
         });
     });
 
+
     $("#btnAdd, #btnSend").on("click", function(){
         const _this = $(this);
         const form = _this.closest("form");
@@ -67,11 +90,18 @@ $(function() {
         if(_this.hasClass("disabled")) {
             return;
         }
+        const test = $("form").serialize();
+        openDialog('/api/auth/tistory?'+test, 'test', '', function() {
+            console.log('unload');
+        })
+
+        return;
+
 
         const btnText= _this.text();
         _this.addClass("disabled btn-wait").html(`<span class="fa fa-spinner fa-spin"></span> ${btnText}`);
 
-        form.submit();
+        //form.submit();
 
         form.find("input").prop("disabled", true);
     });
