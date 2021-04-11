@@ -1,65 +1,94 @@
 import './dotenv.config';
 
 export default {
-    /**
-     * Your favorite port
-     */
-    port: parseInt(process.env.SERVER_PORT, 10),
-    authTokenName : process.env.COOKIE_SCHEME,
+  /**
+   * Accessing environment variable
+   */
+  environment: process.env.NODE_ENV,
+  isProduction: process.env.NODE_ENV === 'production',
 
-    /**
-     * redis
-     */
-    redisIP: process.env.REDIS_IP,
-    redisPort: parseInt(process.env.REDIS_PORT, 10),
-    redisPass: process.env.REDIS_PASS,
-    encryptionKey: process.env.ENCRYPTION_KEY,
+  /**
+   * API configs
+   */
+  api: {
+    prefix: '/api',
+  },
 
-    /**
-     * That long string from mlab
-     */
-    databaseURL: process.env.MONGODB_URI,
+  /**
+   * Server port
+   */
+  port: parseInt(process.env.SERVER_PORT, 10),
 
-    /**
-     * Your secret sauce
-     */
-    jwtSecret: process.env.JWT_SECRET,
-    jwtAlgorithm: process.env.JWT_ALGO,
+  /**
+   * Redis
+   */
+  redis: {
+    ip: process.env.REDIS_IP,
+    port: parseInt(process.env.REDIS_PORT, 10),
+    pass: process.env.REDIS_PASS,
+    tokenDb: process.env.REDIS_TOKEN_DB,
+    sessionDb: process.env.REDIS_SESSION_DB,
+  },
 
-    /**
-     * Used by winston logger
-     */
-    logs: {
-        level: process.env.LOG_LEVEL || 'silly',
+  /**
+   *  Crypto Encrypt key
+   */
+  cryptoEncryptKey: process.env.CRYPTO_ENCRYPT_KEY,
+
+  /**
+   * Used by express-jwt
+   * Retrieve decoded jwt token
+   * req.{authProperty}
+   */
+  authProperty: 'auth',
+
+  /**
+   *  jwtPayloadCookieName in a cookie without httpOnly and sent in a header with ajax.
+   *  This is to access payload data with javascript.
+   *  ex) expiration date
+   *
+   *  jwtSignatureCookieName is in a cookie with HttpOnly.
+   */
+  jwtPayloadCookieName: 'JPCN',
+  jwtSignatureCookieName: 'JSCN',
+
+  /**
+   * Cookie name for tistory authentication request.
+   * This is a temp cookie used per request.
+   */
+  tempForAuthCookieName: 'T_F_ACN',
+
+  /**
+   * jwt secret
+   */
+  jwtSecret: process.env.JWT_SECRET.replace(/\\n/gm, '\n'),
+  jwtAlgorithm: process.env.JWT_ALGO.replace(/\\n/gm, '\n'),
+
+  /**
+   *  Express Secret Key
+   */
+  sessionSecret: process.env.SESSION_SECRET,
+  cookieSecret: process.env.COOKIE_SECRET,
+
+  /**
+   * Used by winston and morgan logger
+   */
+  logs: {
+    winston: {
+      level: process.env.LOG_LEVEL || 'silly',
     },
+    morgan: {
+      mode: process.env.MORGAN_MODE || 'combined',
+    },
+  },
 
-    /**
-     * Agenda.js stuff
-     */
-    agenda: {
-        dbCollection: process.env.AGENDA_DB_COLLECTION,
-        pooltime: process.env.AGENDA_POOL_TIME,
-        concurrency: parseInt(process.env.AGENDA_CONCURRENCY, 10),
-    },
-
-    /**
-     * Agendash config
-     */
-    agendash: {
-        user: 'agendash',
-        password: '123456'
-    },
-    /**
-     * API configs
-     */
-    api: {
-        prefix: '/api',
-    },
-    /**
-     * Mailgun email credentials
-     */
-    emails: {
-        apiKey: process.env.MAILGUN_API_KEY,
-        domain: process.env.MAILGUN_DOMAIN
-    }
+  /**
+   * Tistory api
+   */
+  tistory: {
+    baseUri: 'https://www.tistory.com/apis',
+    authorizationUri: 'https://www.tistory.com/oauth/authorize',
+    accessTokenUri: 'https://www.tistory.com/oauth/access_token',
+    redirectUri: 'http://localhost:3000/api/auth/callback',
+  },
 };

@@ -6,40 +6,46 @@
     "requireConfigFile": false
   },
   "plugins": [
+    "prettier",
     "@typescript-eslint"
   ],
   "extends": [
-    "plugin:@typescript-eslint/recommended",
-    "prettier/@typescript-eslint",
-    "plugin:prettier/recommended"
+    "airbnb-base",
+    "prettier",
+    "plugin:@typescript-eslint/recommended"
   ],
   "ignorePatterns": [
     "dist",
     "node_modules"
   ],
   "rules": {
-    "@typescript-eslint/explicit-member-accessibility": 0,
-    "@typescript-eslint/no-parameter-properties": 0,
-    "@typescript-eslint/interface-name-prefix": 0,
-    "@typescript-eslint/explicit-function-return-type": 0,
-    "@typescript-eslint/rule-name": "error",
+    "@typescript-eslint/explicit-member-accessibility": "off",
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/no-parameter-properties": "off",
+    "@typescript-eslint/interface-name-prefix": "off",
     "prettier/prettier": "error",
     "import/no-extraneous-dependencies": "off",
     "import/extensions": "off",
     "import/no-unresolved": "off",
+    "no-restricted-syntax": ["error", "ForInStatement", "LabeledStatement", "WithStatement"],
     "no-console": "off",
+    "no-param-reassign": ["error", { "props": false }],
+    "no-useless-constructor": "off",
     "quotes": [
-      "off",
-      "single"
+      "error",
+      "single",
+      {
+        "allowTemplateLiterals": true
+      }
     ],
     "comma-dangle": [
       "error",
       {
-        "arrays": "never",
-        "objects": "never",
-        "imports": "never",
-        "exports": "never",
-        "functions": "never"
+        "arrays": "always-multiline",
+        "exports": "always-multiline",
+        "functions": "never",
+        "imports": "always-multiline",
+        "objects": "always-multiline"
       }
     ],
     "arrow-body-style": "off",

@@ -1,39 +1,32 @@
-import redis from 'redis';
-import util from 'util';
-import config from '../config';
+import * as redis from 'redis';
+import * as bluebird from 'bluebird';
+import logger from './logger';
 
-// create and connect redis client to local instance.
-const client = redis.createClient({
-    port: config.redisPort, // The port number to connect to.
-    host: config.redisIP, // The hostname of the database you are connecting to.
-    password: config.redisPass // The password for redis database.
-});
+export default class RedisClient {
+  private readonly client: redis.RedisClient;
 
-client.on("ready", () => {
-    console.log("Redis is ready");
-});
+  constructor(options) {
+    this.client = redis.createClient(options);
 
-client.on('connect', () => {
-    console.log('Connected to redis database');
-});
+    bluebird.promisifyAll(this.client);
 
-// redis errors to the console
-client.on('error', (err) => console.log('redis error : ', err));
+    this.listeners();
+  }
 
-const hgetall = util.promisify(client.hgetall).bind(client);
-const hget = util.promisify(client.hget).bind(client);
-const hmset = util.promisify(client.hmset).bind(client);
-const expireat = util.promisify(client.expireat).bind(client);
-const del = util.promisify(client.del).bind(client);
-const exists = util.promisify(client.exists).bind(client);
+  public getInstance() {
+    return this.client;
+  }
 
-const RedisServer = {
-    hgetall,
-    hget,
-    hmset,
-    expireat,
-    del,
-    exists
-};
+  private listeners() {
+    this.client.on('ready', () => {
+      logger.silly(`Redis is ready`);
+    });
 
-export default RedisServer;
+    this.client.on('connect', () => {
+      logger.silly('Connected to redis database');
+    });
+
+    // redis errors to the console
+    this.client.on('error', (err) => logger.error(err));
+  }
+}
