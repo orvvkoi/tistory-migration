@@ -3,7 +3,6 @@ import methodOverride from 'method-override';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import morgan from 'morgan';
-// import passport from 'passport';
 import { isCelebrateError, errors } from 'celebrate';
 import config from '../config';
 import logger from './logger';
@@ -45,17 +44,6 @@ export default ({ app, session }: { app: express.Application; session  }) => {
 
   // app.use(morgan(config.morgan.mode));
   app.use(morgan(config.logs.morgan.mode, { stream: { write: (message) => logger.info(message) } }));
-
-/*  app.use(passport.initialize());
-  app.use(passport.session());
-
-  passport.serializeUser(function (user, done) {
-    done(null, user);
-  });
-
-  passport.deserializeUser(function (obj, done) {
-    done(null, obj);
-  });*/
 
   // catch 404 and forward to error handler
   app.use((req, res, next) => {

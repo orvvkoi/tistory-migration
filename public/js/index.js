@@ -90,18 +90,20 @@ $(function() {
         if(_this.hasClass("disabled")) {
             return;
         }
-        const test = $("form").serialize();
+       /* const test = $("form").serialize();
         openDialog('/api/auth/tistory?'+test, 'test', '', function() {
             console.log('unload');
         })
 
         return;
+*/
+
 
 
         const btnText= _this.text();
         _this.addClass("disabled btn-wait").html(`<span class="fa fa-spinner fa-spin"></span> ${btnText}`);
 
-        //form.submit();
+        form.submit();
 
         form.find("input").prop("disabled", true);
     });
