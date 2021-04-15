@@ -9,7 +9,7 @@ import MigrationService from '../../services/migration';
 import { IMigrationDTO, IUniqueKey } from '../../interfaces';
 import config from '../../config';
 import logger from '../../loaders/logger';
-import socketIO from 'socket.io';
+import { v4 as uuidv4 } from 'uuid';
 
 const route = Router();
 
@@ -31,8 +31,12 @@ export default (app) => {
       try {
 
         //console.log('req.clientKeys ', req.clientKeys);
-        logger.debug('socketId : %s ', req.sessionID);
+        logger.debug('req.session : %s ', req.session);
         logger.debug('session : %s', JSON.stringify(req.session));
+        // @ts-ignore
+        if(!req.session.id) {
+          req.session.id = uuidv4().replace(/-/g, '');
+        }
 
 
         if (!req.storageId) {
@@ -168,7 +172,7 @@ export default (app) => {
       try {
         const migrationDto: IMigrationDTO = { ...req.body, clientKeys: req.clientKeys } as IMigrationDTO;
 
-        migrationDto.sessionId = req.sessionID;
+        migrationDto.sessionId = req.session.id;
 
         const migrationServiceInstance = Container.get(MigrationService);
         const { migrationSuccess, migrationFail } = await migrationServiceInstance.progress(migrationDto);

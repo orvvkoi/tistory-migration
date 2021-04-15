@@ -73,7 +73,7 @@ export default (app) => {
 
       try {
         let tistoryAuth: ITistoryAuth = req.query as any;
-        tistoryAuth.sessionId = req.sessionID;
+        tistoryAuth.sessionId = req.session.id;
 
         const token = req[config.authProperty];
 
