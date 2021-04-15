@@ -2,6 +2,7 @@ import session from 'express-session';
 import RedisClient from './redis';
 import connectRedis  from 'connect-redis';
 import config from '../config';
+
 const RedisStore = connectRedis(session);
 
 const client = new RedisClient({
@@ -12,7 +13,7 @@ const client = new RedisClient({
 }).getInstance();
 
 const redisSession = {
-  resave: true,
+  resave: false,
   saveUninitialized: true,
   secret: config.sessionSecret,
   key: 'connect.sid',

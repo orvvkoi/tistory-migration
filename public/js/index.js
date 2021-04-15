@@ -1,166 +1,97 @@
-var openDialog = function(uri, name, options, closeCallback) {
-    var win = window.open(uri, name, options);
-    var interval = window.setInterval(function() {
-        try {
-            if (win == null || win.closed) {
-                window.clearInterval(interval);
-                closeCallback(win);
-            }
-        }
-        catch (e) {
-        }
-    }, 1000);
-    return win;
-}
+const openDialog = function(uri, name, options, closeCallback) {
+  const win = window.open(uri, name, options);
+  const interval = window.setInterval(function() {
+    try {
+      if (win == null || win.closed) {
+        window.clearInterval(interval);
+        closeCallback(win);
+      }
+    } catch (e) {
+      window.clearInterval(interval);
+    }
+  }, 1000);
+  return win;
+};
+
 
 $(function() {
-    const socket = io();
+  const jForm = $('#form');
+  const jBtnGetToken = $('#btnGetToken');
 
-    socket.on('connection:sid', function(socketId) {
-        // Set socketId to your cookies, or global variable
-        console.log("socketId ", socketId);
+  jForm.validate({
+    rules: {
+      clientId: {
+        required: true,
+      },
+      clientSecret: {
+        required: true,
+      },
+    },
+    errorPlacement: function(error, element) {
+      // $(element).after(error);
+      return;
+    },
+    highlight: function(element) {
+      $(element).addClass('error-class');
+      formLoadingToggle(false);
+    },
+    unhighlight: function(element) {
+      $(element).removeClass('error-class');
+    },
+  });
 
-      //  sessionStorage.setItem('SID', socketId);
-    });
+  const formLoadingToggle = (isLoading) => {
+    const btnText = jBtnGetToken.text();
+    const isDisabled = jBtnGetToken.hasClass('disabled');
 
-    socket.on("auth_status", function(response) {
-        if(response) {
-            const form = $("form:visible");
-            const index = pageHandler(form).index;
-
-            if(response.status === "success") {
-                const step2 = $("div.modal-body.modal-body-step-2");
-                const list = step2.find("div.layout-description.tal ul");
-                if(list.length) {
-                    list.append(`<li>${response.clientId}</li>`);
-                } else {
-                    step2.find("div.layout-description").after(`<div class="layout-description tal">client id list.<ul><li>${response.clientId}</li></ul></div>`);
-                }
-                if(index === 0) {
-                    setTimeout(() => {
-                        pageHandler(form).move();
-                    },800);
-                } else if(index === 1) {
-                    form.find("#btnAdd").removeClass("disabled btn-wait").html(`<i class='fas fa-plus mr-5'></i>add to storage`);
-                    form.find("input").prop("disabled", false);
-                }
-            } else {
-                if(index === 0) {
-                    form.find("#btnSend").removeClass("disabled btn-wait").text("send");
-                } else if(index === 1) {
-                    form.find("#btnAdd").removeClass("disabled btn-wait").html(`<i class='fas fa-plus mr-5'></i>add to storage`);
-                }
-                form.find("input").prop("disabled", false);
-            }
-
-
-        }
-    });
-
-    $("form").each(function() {
-        // attach to all form elements on page
-        $(this).validate({
-            rules: {
-                client_id: {
-                    required: true
-                },
-                client_secret: {
-                    required: true
-                }
-            },
-            errorPlacement: function(){
-                return false;  // suppresses error message text
-            },
-            highlight: function(element) {
-                $(element).addClass('error');
-            }, unhighlight: function(element) {
-                $(element).removeClass('error');
-            },
-            submitHandler: function(form) {
-                form.submit();
-            }
-        });
-    });
-
-
-    $("#btnAdd, #btnSend").on("click", function(){
-        const _this = $(this);
-        const form = _this.closest("form");
-
-        if(_this.hasClass("disabled")) {
-            return;
-        }
-       /* const test = $("form").serialize();
-        openDialog('/api/auth/tistory?'+test, 'test', '', function() {
-            console.log('unload');
-        })
-
-        return;
-*/
-
-
-
-        const btnText= _this.text();
-        _this.addClass("disabled btn-wait").html(`<span class="fa fa-spinner fa-spin"></span> ${btnText}`);
-
-        form.submit();
-
-        form.find("input").prop("disabled", true);
-    });
-
-    $(document).on("click", "div.button[id^=btnNext]", function(){
-        let _this = $(this);
-        let form = _this.closest("form");
-        pageHandler(form).move();
-    });
-
-
-    function pageHandler(form) {
-        const modalBody = form.closest(".modal-body"),
-            stepIndex = modalBody.index(),
-            pag = $('.modal-header span').eq(stepIndex);
-
-        return {
-            index: (() => {
-                return stepIndex;
-            })(),
-            move: () => {
-                changeStep(modalBody, pag);
-
-                if(stepIndex === 1) {
-                    treeInitialize();
-                }
-            },
-        }
+    // isLoading, isDisabled 둘다 true인 경우 로딩중.
+    if (isLoading && isDisabled) {
+      return;
     }
 
-    function changeStep(step, pag){
-        // animate the step out
-        step.addClass('animate-out');
+    if (isLoading) {
+      jBtnGetToken.addClass('disabled btn-wait').html(`<span class='fa fa-spinner fa-spin'></span> ${btnText}`);
+      jForm.find('input').prop('disabled', true);
+    } else {
+      jBtnGetToken.removeClass('disabled btn-wait').text(`${btnText}`);
+      jForm.find('input').prop('disabled', false);
+    }
+  };
 
-        // animate the step in
-        setTimeout(function(){
-            step.removeClass('animate-out is-showing').next().addClass('animate-in');
-            pag.removeClass('is-active').next().addClass('is-active');
-        }, 600);
+  jBtnGetToken.on('click', function(e) {
+    e.preventDefault();
 
-        // after the animation, adjust the classes
-        setTimeout(function(){
-            step.next().removeClass('animate-in').addClass('is-showing');
+    const _this = $(this);
 
-        }, 1200);
+    if (!jForm.valid() || _this.hasClass('disabled')) {
+      return;
     }
 
-    $('.rerun-button').click(function(){
-        $('.modal-wrap').removeClass('animate-up')
-            .find('.modal-body')
-            .first().addClass('is-showing')
-            .siblings().removeClass('is-showing');
+    const queryString = jForm.serialize();
+    const url = `/api/auth/tistory?${queryString}`;
 
-        $('.modal-header span').first().addClass('is-active')
-            .siblings().removeClass('is-active');
-        $(this).hide();
+    openDialog(url, 'auth', '', function() {
+      console.log('unload');
+      formLoadingToggle(false);
     });
+
+    formLoadingToggle(true);
+  });
+
+  $(document).on('click', '[data-id="delToken"]', function(e) {
+    e.preventDefault();
+    const _this = $(this);
+
+    const uuid = _this.data('uuid');
+
+    const req = UTIL.ajax.delete(`/api/migration/tokens/${ uuid }`);
+
+    req.done(res => {
+
+    }).fail(err => {
+
+    });
+
+  });
 
 });
-

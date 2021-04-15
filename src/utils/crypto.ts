@@ -7,14 +7,14 @@ const decrypt = (obj: any) => {
   try {
     return JSON.parse(CryptoJS.AES.decrypt(obj, config.cryptoEncryptKey).toString(CryptoJS.enc.Utf8));
   } catch (err) {
-    console.error(err);
+    console.error('crypto-js decrypt', err);
     return '';
   }
 };
 
-const CryptoUtils = {
+const Crypto = {
   encrypt,
   decrypt,
 };
 
-export default CryptoUtils;
+export default Crypto;

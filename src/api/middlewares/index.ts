@@ -1,7 +1,8 @@
 import migrationMiddleware from './migration';
-import isAuth from './isAuth';
+import { authenticatedMiddleware, looselyAuthenticatedMiddleware } from './auth';
 
 export default {
+  authenticatedMiddleware,
+  looselyAuthenticatedMiddleware,
   migrationMiddleware,
-  isAuth
 };

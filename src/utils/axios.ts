@@ -77,11 +77,11 @@ const all = async (arr) => {
   return null;
 };
 
-const RequestUtils = {
+const axiosUtils = {
   get,
   post,
   request,
   all,
 };
 
-export default RequestUtils;
+export default axiosUtils;

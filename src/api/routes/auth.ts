@@ -6,7 +6,7 @@ import OAuthService from '../../services/tistory.auth';
 import middlewares from '../middlewares';
 import config from '../../config';
 import { ITistoryAuth } from '../../interfaces';
-import CryptoUtils from '../../utils/CryptoUtils';
+import Crypto from '../../utils/crypto';
 
 const route = Router();
 
@@ -15,13 +15,13 @@ export default (app) => {
 
   route.get(
     '/tistory',
-    middlewares.isAuth,
+    middlewares.looselyAuthenticatedMiddleware,
     celebrate({
       [Segments.QUERY]: Joi.object({
-        clientId: Joi.string().required(),
-        clientSecret: Joi.string().required(),
-        callbackUrl: Joi.alternatives().try(Joi.string().uri(), Joi.string().ip()).optional(),
-      }),
+        clientId: Joi.string().alphanum(),
+        clientSecret: Joi.string().alphanum(),
+        //callbackUrl: Joi.alternatives().try(Joi.string().uri(), Joi.string().ip()).optional(),
+      }).required(),
     }),
     async (req: Request, res: Response, next: NextFunction) => {
       const logger: Logger = Container.get('logger');
@@ -34,11 +34,7 @@ export default (app) => {
 
         if (token && token.storageId) {
           tistoryAuth = { ...tistoryAuth, ...{ storageId: token.storageId } };
-
-          console.log('token.storageId 1 ', token.storageId);
         }
-
-
 
         const authServiceInstance = Container.get(OAuthService);
 
@@ -57,15 +53,19 @@ export default (app) => {
 
   route.get(
     '/callback',
-    middlewares.isAuth,
+    middlewares.looselyAuthenticatedMiddleware,
     celebrate({
-      [Segments.QUERY]: Joi.object({
-        code: Joi.string().token().required(),
-        state: Joi.any().required(),
-        error: Joi.any().optional(),
-        error_reason: Joi.any().allow(null).allow('').optional(),
-        error_description: Joi.any().allow(null).allow('').optional(),
-      }),
+      [Segments.QUERY]: Joi.alternatives().try(
+        Joi.object({
+          code: Joi.string().token(),
+          state: Joi.any(),
+        }).required(),
+        Joi.object({
+          error: Joi.any().required(),
+          error_reason: Joi.any().allow(null).allow('').optional(),
+          error_description: Joi.any().allow(null).allow('').optional(),
+        }),
+      ),
     }),
     async (req: Request, res: Response, next: NextFunction) => {
       const logger: Logger = Container.get('logger');
@@ -73,29 +73,26 @@ export default (app) => {
 
       try {
         let tistoryAuth: ITistoryAuth = req.query as any;
-        tistoryAuth.socketId = req.session.socketId;
-        logger.debug('callback state : %s', req.query.state);
+        tistoryAuth.sessionId = req.sessionID;
 
         const token = req[config.authProperty];
 
         if (token && token.storageId) {
-          tistoryAuth = { ...tistoryAuth, ...{ storageId: token.storageId } };
-
-          console.log('token.storageId 2 ', token.storageId);
+          tistoryAuth = { ...tistoryAuth, ...{ storageId: token.storageId} };
         }
-
-
 
         const authServiceInstance = Container.get(OAuthService);
         const { newToken } = await authServiceInstance.authorization(tistoryAuth);
 
-        res.cookie(config.jwtSignatureCookieName, newToken);
-        logger.debug('newToken : %s', newToken);
+        if(newToken) {
+          res.cookie(config.jwtSignatureCookieName, newToken);
+          logger.debug('generated jwt token : %s', newToken);
+        }
 
         return res.send(`<script>window.close();</script>`);
       } catch (e) {
         logger.error('🔥 error: %o', e);
-        return next(e);
+        return res.send(`<script>window.close();</script>`);
       }
     }
   );
