@@ -25,12 +25,14 @@ $(function() {
         const $tokenSection = $(".token-list-section");
 
         if(!$tokenSection.find('#tokenList').length) {
-          $tokenSection.append(`<ul id="tokenList" class="asterisk"></ul>`);
+          $tokenSection.append(`<ul id="tokenList" class="token-list"></ul>`);
         }
 
         const $tokenList = $("#tokenList");
-        $tokenList.append(`<li>${clientIdPrefix}<span>${clientIdSuffix}</span><span class="close" data-id="delToken" data-uuid="${uuid}">x</span></li>`)
-
+        $tokenList.append(
+          $(`<li>${clientIdPrefix}<span class="asterisk">${clientIdSuffix}</span><span class="close" data-id="delToken" data-uuid="${uuid}">x</span></li>`).hide().fadeIn('slow')
+        );
+        $.ui.fancytree.getTree("#originTree").reload();
       }
     }
   });

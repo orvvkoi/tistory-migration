@@ -218,10 +218,11 @@ input:focus {
 .token-list-section ul {
     position: relative;
 }
+
 .token-list-section .close {
     position: absolute;
     right: 0;
-    color: rgba(0,0,0,0.3);
+    color: rgba(0, 0, 0, 0.3);
     height: 20px;
     width: 20px;
     font-size: 20px;
@@ -234,7 +235,7 @@ input:focus {
     cursor: pointer;
 }
 
-.asterisk span {
+.token-list .asterisk {
     vertical-align: middle;
     display: inline-block;
     line-height: 20px;

@@ -71,6 +71,7 @@ export default class MigrationService {
             }, []);
 
             blogs.push({
+              uuid: blogInfo.uuid,
               title: blogId,
               folder: true,
               expanded: true,
@@ -319,7 +320,7 @@ export default class MigrationService {
     }
   }
 
-  public async deleteToken(migrationDTO: IMigrationDTO): Promise<object[]> {
+  public async deleteToken(migrationDTO: IMigrationDTO): Promise<boolean> {
     try {
 
       const { storageId, uuid } = migrationDTO;
@@ -335,28 +336,23 @@ export default class MigrationService {
        *  hrm. enterprise 6.0 부터 지원.
        *
        *  hsacn으로 대체
-       *  cursor가 0 이상인 경우 데이터 적재가 잘못 됨.
-       *
+       *  cursor가 0 이상인 경우 데이터 적재 문제.
        */
-      const [ cursor, matchedField ] = await this.redis.send_commandAsync('HSCAN', [storageId, 0, 'MATCH', '*:' + uuid, 'COUNT', 6]);
+      const [ cursor, matchedResults ] = await this.redis.send_commandAsync('HSCAN', [storageId, 0, 'MATCH', '*:' + uuid, 'COUNT', 6]);
 
       if(cursor > 0) {
         this.logger.error('deleteToken storageId, uuid, cursor %s %s %d ', storageId, uuid, cursor);
       }
 
-      console.log('matchedField ', matchedField);
+      const matchedFields = matchedResults.filter(function(d){
+        return /clientId:|clientSecret:|accessToken:/.test(d);
+      });
+      this.logger.debug('matchedFields %s', matchedFields);
 
+      const deletedFieldCount = await this.redis.hdelAsync(storageId, matchedFields);
+      const deleteResult = deletedFieldCount > 0;
 
-
-
-      // await this.redis.hmsetAsync(storageId, newData);
-
-
-      const blogs = [];
-
-
-
-      return blogs;
+      return deleteResult;
     } catch (e) {
       this.logger.error(e);
       throw e;

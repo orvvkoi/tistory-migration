@@ -42,12 +42,12 @@ block content
         p.text-large.theme-color
           |Registered token information is displayed here.
           if storages
-            ul#tokenList.asterisk
+            ul#tokenList.token-list
               each storage, index  in storages
                 li #{storage.clientId.slice(0, 15)}
-                  span !{storage.clientId.slice(16).replace(/(?<=.{0})./gi, "*")}
+                  span.asterisk !{storage.clientId.slice(16).replace(/(?<=.{0})./gi, "*")}
                   span.close(data-id='delToken' data-uuid=storage.uuid) x
     .tree-container
       .tree-section
-        div#tree
-        div#tree2
+        div#originTree
+        div#targetTree

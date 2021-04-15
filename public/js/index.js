@@ -19,6 +19,9 @@ $(function() {
   const jBtnGetToken = $('#btnGetToken');
 
   jForm.validate({
+    normalizer: function(value) {
+      return $.trim(value);
+    },
     rules: {
       clientId: {
         required: true,
@@ -31,13 +34,15 @@ $(function() {
       // $(element).after(error);
       return;
     },
+    // unhighlight ?
+    onfocusout: function (element) {
+      $(element).removeClass('error-class');
+    },
     highlight: function(element) {
       $(element).addClass('error-class');
       formLoadingToggle(false);
     },
-    unhighlight: function(element) {
-      $(element).removeClass('error-class');
-    },
+
   });
 
   const formLoadingToggle = (isLoading) => {
@@ -50,7 +55,7 @@ $(function() {
     }
 
     if (isLoading) {
-      jBtnGetToken.addClass('disabled btn-wait').html(`<span class='fa fa-spinner fa-spin'></span> ${btnText}`);
+      jBtnGetToken.addClass('disabled btn-wait').html(`<i class='fa fa-spinner fa-spin'></i> ${btnText}`);
       jForm.find('input').prop('disabled', true);
     } else {
       jBtnGetToken.removeClass('disabled btn-wait').text(`${btnText}`);
@@ -71,7 +76,6 @@ $(function() {
     const url = `/api/auth/tistory?${queryString}`;
 
     openDialog(url, 'auth', '', function() {
-      console.log('unload');
       formLoadingToggle(false);
     });
 
@@ -84,12 +88,26 @@ $(function() {
 
     const uuid = _this.data('uuid');
 
+    _this.addClass('disabled btn-wait').html(`<i class="fa fa-spinner fa-spin"></i>`);
+
     const req = UTIL.ajax.delete(`/api/migration/tokens/${ uuid }`);
 
     req.done(res => {
+      if(res.result) {
+        _this.closest('li').hide('slow', function() {
+          _this.remove();
+        });
 
+       /* $.ui.fancytree.getTree("#originTree").getRootNode().children.find(o=> o.data.uuid === uuid).remove();
+        $.ui.fancytree.getTree("#targetTree").getRootNode().children.find(o=> o.data.uuid === uuid).remove();*/
+
+        $.ui.fancytree.getTree("#originTree").reload();
+        return;
+      }
+
+      _this.removeClass('disabled btn-wait').text(`x`);
     }).fail(err => {
-
+      _this.removeClass('disabled btn-wait').text(`x`);
     });
 
   });
