@@ -5,7 +5,7 @@ import config from './config';
 import logger from './loaders/logger';
 import socketio from './loaders/socket.io';
 import dependencyInjector from './loaders/dependencyInjector';
-import session from './loaders/redis.session';
+import session from './loaders/cookie-session';
 
 /**
  * Add external services init as async operations
@@ -31,9 +31,9 @@ async function startServer() {
   const socket = new socketio(server).getInstance();
 
   /**
-   *  Share the redis express session with socket.io
+   *  Share the redis cookie session with socket.io
    */
-  socket.use(SharedSession(session, {autoSave: true}));
+  socket.use(SharedSession(session, { autoSave: true }));
   logger.info(`Attached Socket to the App server.`);
 
   dependencyInjector([

@@ -7,7 +7,7 @@ import { isCelebrateError } from 'celebrate';
 import config from '../config';
 import logger from './logger';
 import routes from '../api';
-import session from './redis.session';
+import session from './cookie-session';
 
 export default ({ app }: { app: express.Application; }) => {
   app.enable('trust proxy');
