@@ -14,6 +14,7 @@ const client = new RedisClient({
 
 const redisSession = {
   resave: false,
+  rolling: true,
   saveUninitialized: true,
   secret: config.sessionSecret,
   key: 'connect.sid',
