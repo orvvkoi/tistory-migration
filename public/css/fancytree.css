@@ -10,18 +10,21 @@ ul.fancytree-container {
     overflow-y: scroll;
     width: 48%;
     display: inline-block;
-    padding:8px !important;
+    padding: 8px !important;
 }
-#tree ul.fancytree-container {
+
+#originTree ul.fancytree-container {
     float: left;
 }
 
 span.fancytree-node.fancytree-drag-source {
     outline: 1px dotted grey;
 }
+
 span.fancytree-node.fancytree-drop-accept {
     outline: 1px dotted green;
 }
+
 span.fancytree-node.fancytree-drop-reject {
     outline: 1px dotted red;
 }
@@ -32,6 +35,7 @@ span.trashcan {
     color: #721c24;
     padding: 1px 3px;
 }
+
 span.fancytree-node span.fancytree-title span.fancytree-childcounter {
     color: #fff;
     background: #337ab7;
@@ -47,4 +51,8 @@ span.fancytree-node span.fancytree-title span.fancytree-childcounter {
 span.fancytree-selected .fancytree-title {
     border: 1px dashed #eaa06c;
     border-radius: 0;
+}
+
+span.fancytree-node.fancytree-statusnode-nodata.fancytree-ico-c .fancytree-icon {
+    margin-top: 5px;
 }

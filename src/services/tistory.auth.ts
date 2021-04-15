@@ -40,6 +40,11 @@ export default class OAuthService {
 
     storageId = hasKey ? storageId : uuidv4().replace(/-/g, '');
 
+    /**
+     *  hexists: field 존재 확인.
+     *  hsetnx: field가 없는 경우 저장.
+     *  hgetall 대신 확인 할 수 있는가?
+     */
     const keyStorage: object = await this.redis.hgetallAsync(storageId);
     // Return object after clientId duplicate check
     const duplicateKeyObj = keyStorage ? Object.keys(keyStorage).find(key => keyStorage[key] === clientId) : '';

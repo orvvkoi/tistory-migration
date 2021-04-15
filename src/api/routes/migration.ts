@@ -198,9 +198,9 @@ export default (app) => {
         const migrationDTO: IMigrationDTO = { ...req.params, storageId: req.storageId} as IMigrationDTO;
 
         const migrationServiceInstance = Container.get(MigrationService);
-        const blogs = await migrationServiceInstance.deleteToken(migrationDTO);
+        const deleteResult: boolean = await migrationServiceInstance.deleteToken(migrationDTO);
 
-        res.json(blogs);
+        res.json({ result: deleteResult });
       } catch (e) {
         logger.error('🔥 error: %o', e);
         return next(e);
