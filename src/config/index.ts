@@ -26,8 +26,7 @@ export default {
     ip: process.env.REDIS_IP,
     port: parseInt(process.env.REDIS_PORT, 10),
     pass: process.env.REDIS_PASS,
-    tokenDb: process.env.REDIS_TOKEN_DB,
-    sessionDb: process.env.REDIS_SESSION_DB,
+    tokenDb: process.env.REDIS_TOKEN_DB
   },
 
   /**
@@ -53,21 +52,14 @@ export default {
   jwtSignatureCookieName: 'JSCN',
 
   /**
-   * Cookie name for tistory authentication request.
-   * This is a temp cookie used per request.
-   */
-  tempForAuthCookieName: 'T_F_ACN',
-
-  /**
    * jwt secret
    */
   jwtSecret: process.env.JWT_SECRET.replace(/\\n/gm, '\n'),
   jwtAlgorithm: process.env.JWT_ALGO.replace(/\\n/gm, '\n'),
 
   /**
-   *  Express Secret Key
+   *  cookie-session secret key
    */
-  sessionSecret: process.env.SESSION_SECRET,
   cookieSecret: process.env.COOKIE_SECRET,
 
   /**

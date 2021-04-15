@@ -22,11 +22,6 @@ export default (app) => {
       middlewares.looselyAuthenticatedMiddleware,
       middlewares.migrationMiddleware,
     ],
-    celebrate({
-      [Segments.COOKIES]: Joi.object({
-        [config.tempForAuthCookieName]: Joi.string(),
-      }).unknown(),
-    }),
     async (req: Request, res: Response, next) => {
       try {
 
