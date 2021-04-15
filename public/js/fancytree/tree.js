@@ -1,39 +1,12 @@
 $(function() {
-
-  /*
-   * countChildren 재정의
-   * node type이 paging인 경우 카운트에서 제외함.
-   */
-  $.ui.fancytree._FancytreeNodeClass.prototype.countChildren = function(deep) {
-    var cl = this.children,
-      i,
-      l,
-      n,
-      c;
-    if (!cl) {
-      return 0;
-    }
-    c = cl.length;
-    n = cl.length;
-
-    let hasPaging = cl.find(n => n.statusNodeType === 'paging');
-    if (hasPaging) {
-      n -= 1;
-    }
-
-    if (deep !== false) {
-      for (i = 0, l = c; i < l; i++) {
-        n += cl[i].countChildren();
-      }
-    }
-
-    return n;
-  };
-
-
-  /*
+  /**
    * fancytree event
    */
+
+  $("#originTree").on("fancytreeinit", function(event, data){
+    $.ui.fancytree.getTree("#targetTree").reload(data.tree.toDict(false));
+  });
+
   const event = {
     click: (event, data) => {
       // data.node.setSelected(true) will work too
@@ -108,6 +81,11 @@ $(function() {
 
       let node = data.node;
       let children = node.children;
+
+      /**
+       *  다중 트리에서 updateCounters 버그가 있음.
+       *  예외 처리.
+       */
 
       node.updateCounters();
 
@@ -292,7 +270,7 @@ $(function() {
           _this.buttons.close.hide();
           _this.buttons.close.disable();
 
-          $.ui.fancytree.getTree('#tree').visit(function(node) {
+          $.ui.fancytree.getTree('#originTree').visit(function(node) {
             node.setSelected(false);
           });
 
@@ -487,7 +465,6 @@ $(function() {
     return _dnd5opts;
   })();
 
-
   let _TREE_OPTION = {
     extensions: ['dnd5', 'multi', 'glyph', 'childcounter'],
     source: { url: '/api/migration/blogs', cache: true },
@@ -515,10 +492,11 @@ $(function() {
   };
 
   window.treeInitialize = () => {
-    $('#tree').fancytree(_TREE_OPTION);
+
+    $('#originTree').fancytree(_TREE_OPTION);
 
     // ES9 object destructuring
-    let { childcounter, loadChildren, ..._TREE_OPTION2 } = { ..._TREE_OPTION };
+    let { childcounter, loadChildren, source, ..._TREE_OPTION2 } = { ..._TREE_OPTION };
     _TREE_OPTION2.checkbox = false;
     _TREE_OPTION2.extensions = ['dnd5', 'multi', 'glyph'];
     _TREE_OPTION2.postProcess = function(event, data) {
@@ -539,7 +517,7 @@ $(function() {
       }
     };
 
-    $('#tree2').fancytree(_TREE_OPTION2);
+    $('#targetTree').fancytree(_TREE_OPTION2);
   };
 
   treeInitialize();
@@ -547,62 +525,74 @@ $(function() {
 });
 
 
-/*Enable dnd5 extension and pass options:
-    dnd5: {
-        // Available options with their default:
-        autoExpandMS: 1500,           // Expand nodes after n milliseconds of hovering.
-            dropMarkerOffsetX: -24,       // absolute position offset for .fancytree-drop-marker
-            // relatively to ..fancytree-title (icon/img near a node accepting drop)
-            dropMarkerInsertOffsetX: -16, // additional offset for drop-marker with hitMode = "before"/"after"
-            dropMarkerParent: "body",     // Root Container used for drop marker (could be a shadow root)
-            effectAllowed: "all",         // Restrict the possible cursor shapes and modifier operations
-            // (can also be set in the dragStart event)
-            dropEffectDefault: "move",    // Default dropEffect ('copy', 'link', or 'move')
-            // when no modifier is pressed (overide in dragDrag, dragOver).
-            multiSource: false,           // true: Drag multiple (i.e. selected) nodes.
-            // Also a callback() is allowed to return a node list
-            preventForeignNodes: false,   // Prevent dropping nodes from another Fancytree
-            preventLazyParents: true,     // Prevent dropping items on unloaded lazy Fancytree nodes
-            preventNonNodes: false,       // Prevent dropping items other than Fancytree nodes
-            preventRecursion: true,       // Prevent dropping nodes on own descendants when in move-mode
-            preventSameParent: false,     // Prevent dropping nodes under same direct parent
-            preventVoidMoves: true,       // Prevent moving nodes 'before self', etc.
-            scroll: true,                 // Enable auto-scrolling while dragging
-            scrollSensitivity: 20,        // Active top/bottom margin in pixel
-            scrollSpeed: 5,               // Pixel per event
-            setTextTypeJson: false,       // Allow dragging of nodes to different IE windows
-            sourceCopyHook: null,         // Optional callback passed to `toDict` on dragStart @since 2.38
-            // Events (drag support)
-            dragStart: null,       // Callback(sourceNode, data), return true, to enable dragging
-            dragDrag: $.noop,      // Callback(sourceNode, data)
-            dragEnd: $.noop,       // Callback(sourceNode, data)
-            // Events (drop support)
-            dragEnter: null,       // Callback(targetNode, data), return true, to enable dropping
-            dragOver: $.noop,      // Callback(targetNode, data)
-            dragExpand: $.noop,    // Callback(targetNode, data)
-            dragDrop: $.noop,      // Callback(targetNode, data)
-            dragLeave: $.noop      // Callback(targetNode, data)
-    },*/
+$(function() {
+  /**
+   * fancytree updateCounters
+   * 의도치 않은 결과로 인해 오버라이드
+   * 다중 트리인 경우, 모든 트리에 count가 적용 됨
+   * node.span 이 없는 경우 undefined 반환
+   */
+  $.ui.fancytree._FancytreeNodeClass.prototype.updateCounters = function() {
+    var node = this;
 
-/*All callback methods are passed a data object:
+    if(!node.span) {
+      return;
+    }
 
-{
-    tree: {Fancytree},            // The tree that the event refers to
-    node: {FancytreeNode},        // The node that the event refers to (also passed as first argument)
-    options: {object},            // Tree options (plugin options accessible as `options.dnd5`)
-    originalEvent: {Event},       // The original jQuery Event that caused this callback
-    widget: {object},             // The jQuery UI tree widget
-    dataTransfer: {DataTransfer}, // Access drag data, drag image, and system drop effect
-    dropEffect: {string},         // ('move', 'copy', or 'link') access the requested drop effect
-    dropEffectSuggested: {string},// Recommended effect derived from a common key mapping
-    effectAllowed: {string},      // ('all', 'copyMove', 'link', 'move', ...) Settable on dragstart only
-    useDefaultImage: {boolean},   // (Default: true) Developer can set this to false if a custom setDragImage() was called
-    isCancelled: {boolean},       // Set for dragend and drop events
-    isMove: {boolean},            // false for copy or link effects
-    // Only on these events: dragenter, dragover, dragleave, drop:
-    files: null,                  // list of `File` objects if any were dropped (may be [])
-        hitMode: {string},            // 'over', 'after', 'before'
-    otherNode: {FancytreeNode},   // If applicable: the other node, e.g. drag source, ...
-    otherNodeList: {Array(FancytreeNode)},
-    otherNodeData: {object},      // set by drop event
-}*/
+    var  $badge = $("span.fancytree-childcounter", node.span),
+      extOpts = node.tree.options.childcounter,
+      count = node.countChildren(extOpts.deep);
+
+    node.data.childCounter = count;
+    if (
+      (count || !extOpts.hideZeros) &&
+      (!node.isExpanded() || !extOpts.hideExpanded)
+    ) {
+      if (!$badge.length) {
+        $badge = $("<span class='fancytree-childcounter'/>").appendTo(
+          $(
+            "span.fancytree-icon,span.fancytree-custom-icon",
+            node.span
+          )
+        );
+      }
+      $badge.text(count);
+    } else {
+      $badge.remove();
+    }
+    if (extOpts.deep && !node.isTopLevel() && !node.isRootNode()) {
+      node.parent.updateCounters();
+    }
+  };
+
+  /**
+   * fancytree countChildren 오버라이드
+   * node type이 paging인 경우 카운트에서 제외함.
+   */
+  $.ui.fancytree._FancytreeNodeClass.prototype.countChildren = function(deep) {
+    var cl = this.children,
+      i,
+      l,
+      n,
+      c;
+
+    if (!cl || cl[0].statusNodeType === 'nodata') {
+      return 0;
+    }
+
+    c = cl.length;
+    n = cl.length;
+
+    let hasPaging = cl.find(n => n.statusNodeType === 'paging');
+    if (hasPaging) {
+      n -= 1;
+    }
+
+    if (deep !== false) {
+      for (i = 0, l = c; i < l; i++) {
+        n += cl[i].countChildren();
+      }
+    }
+    return n;
+  };
+});
