@@ -1,44 +1,44 @@
+import createError from 'http-errors';
 import { Service, Inject } from 'typedi';
-import CryptoUtils from '../utils/CryptoUtils';
-import { IMigration } from '../interfaces/IMigration';
-import { ITistoryApiDTO, ITistoryAuth } from '../interfaces/ITistory';
+import { ITistoryApi, IMigrationDTO } from '../interfaces';
 import TistoryService from './tistory.api';
 
 @Service()
 export default class MigrationService {
-  @Inject('TistoryService')
-  private readonly tistoryService: TistoryService;
-
   constructor(
+    @Inject('TistoryService')
+    private readonly tistoryService: TistoryService,
+    @Inject('redis')
+    private redis,
     @Inject('logger')
     private logger,
     @Inject('socket')
-    private socket
-  ) {}
+    private socket,
+  ) {
+  }
 
-  public async getBlogList(auth: IMigration): Promise<object[]> {
+  public async getBlogList(migrationDTO: IMigrationDTO): Promise<object[]> {
     try {
-      const { storageData } = auth;
+      const { clientKeys } = migrationDTO;
 
-      const promises = Object.values(storageData)
-        .filter((storage: any) => storage.accessToken)
-        .map(async (storage: any) => {
-          const { clientId, accessToken } = storage;
+      const promises: object[] = clientKeys.map(async (storage: any) => {
+        const { uuid, clientId, accessToken } = storage;
 
-          if (accessToken) {
-            let params: ITistoryApiDTO = {};
-            params = { ...params, accessToken };
+        if (accessToken) {
+          let params: ITistoryApi = {
+            accessToken,
+          };
 
-            let blogInfo = await this.tistoryService.getBlogInfo(params);
+          let blogInfo = await this.tistoryService.getBlogInfo(params);
+          blogInfo = { uuid, ...blogInfo };
 
-            blogInfo = { clientId, ...blogInfo };
-            return blogInfo;
-          }
+          return blogInfo;
+        }
 
-          return false;
-        });
+        return false;
+      });
 
-      const blogInfos = await Promise.all(promises);
+      const blogInfos: any[] = await Promise.all(promises);
 
       const blogs = [];
 
@@ -53,15 +53,11 @@ export default class MigrationService {
               let o = curr;
 
               if (!unique.some((blog) => blog.blogId === o.blogId)) {
-                const uniqueKey = CryptoUtils.encrypt({
-                  clientId: blogInfo.clientId,
-                  blogName: o.name,
-                });
-
                 const postCount = o.statistics && o.statistics.post ? parseInt(o.statistics.post, 10) : 0;
 
                 o = {
-                  uniqueKey,
+                  uuid: blogInfo.uuid,
+                  blogName: o.name,
                   folder: true,
                   lazy: postCount > 0,
                   isBlog: true,
@@ -93,20 +89,21 @@ export default class MigrationService {
     }
   }
 
-  public async getCategoryList(auth: IMigration): Promise<object[]> {
+  public async getCategoryList(migrationDTO: IMigrationDTO): Promise<object[]> {
     try {
-      const { uniqueKey, storageData } = auth;
-      const { clientId, blogName } = CryptoUtils.decrypt(uniqueKey);
+      const { uniqueKey, clientKeys } = migrationDTO;
+      const { uuid, blogName } = uniqueKey as any;
 
       let responses = [];
 
-      console.log('uniqueKey, clientId, blogName ', uniqueKey, clientId, blogName);
-      const { accessToken } = storageData[clientId];
-      if (accessToken) {
-        let params: ITistoryApiDTO = {};
-        params = { ...params, accessToken, blogName };
+      this.logger.debug('getCategoryList: [uuid] %s, [blogName] %s ', uuid, blogName);
 
-        let categoryList = await this.tistoryService.getCategoryList(params);
+      const { accessToken } = clientKeys.find(keys => keys['uuid'] === uuid);
+
+      if (accessToken) {
+        let tistoryApi: ITistoryApi = { accessToken, blogName };
+
+        let categoryList: any = await this.tistoryService.getCategoryList(tistoryApi);
 
         if (categoryList) {
           categoryList = categoryList.map((category) => {
@@ -114,14 +111,10 @@ export default class MigrationService {
             const entries = parseInt(item.entries, 10);
             const hasPost = entries > 0;
 
-            const uniqueKey = CryptoUtils.encrypt({
-              clientId,
-              categoryId: item.id,
-              blogName,
-            });
-
             item = {
-              uniqueKey,
+              uuid,
+              blogName,
+              categoryId: item.id,
               folder: true,
               lazy: hasPost,
               expanded: hasPost,
@@ -164,23 +157,23 @@ export default class MigrationService {
     }
   }
 
-  public async getPostList(auth: IMigration): Promise<object[]> {
+  public async getPostList(migrationDTO: IMigrationDTO): Promise<object[]> {
     try {
-      const { uniqueKey, storageData, page } = auth;
-      const { clientId, categoryId, blogName } = CryptoUtils.decrypt(uniqueKey);
+      const { uniqueKey, clientKeys, page = 1 } = migrationDTO;
+      const { uuid, categoryId, blogName } = uniqueKey as any;
 
       let responses = [];
 
-      const { accessToken } = storageData[clientId];
+      const { accessToken } = clientKeys.find(keys => keys['uuid'] === uuid);
+
       if (accessToken) {
-        let params: ITistoryApiDTO = {};
-        params = { ...params, accessToken, blogName, page, categoryId };
+        let tistoryApi: ITistoryApi = { accessToken, blogName, page, categoryId };
 
         const {
           posts: postList,
           page: currentPage,
           totalCount,
-        }: { posts: any; page: number; totalCount: number } = await this.tistoryService.getPostList(params);
+        }: { posts: any; page: number; totalCount: number } = await this.tistoryService.getPostList(tistoryApi);
 
         const postsLength = postList ? postList.length : 0;
 
@@ -188,14 +181,10 @@ export default class MigrationService {
           responses = postList.map((item) => {
             let post = { ...item };
 
-            const postUniqueKey = CryptoUtils.encrypt({
-              clientId,
+            post = {
+              uuid,
               blogName,
               postId: post.id,
-            });
-
-            post = {
-              uniqueKey: postUniqueKey,
               ...post,
             };
 
@@ -203,15 +192,11 @@ export default class MigrationService {
           });
 
           if (totalCount % postsLength > 0) {
-            const categoryUniqueKey = CryptoUtils.encrypt({
-              clientId,
-              blogName,
-              categoryId,
-            });
-
             responses.push({
               title: `<span class='fa fa-plus-circle'>&nbsp;&nbsp;More...</span>`,
-              uniqueKey: categoryUniqueKey,
+              uuid,
+              blogName,
+              categoryId,
               statusNodeType: 'paging',
               icon: false,
               page: Number(currentPage) + 1,
@@ -228,17 +213,11 @@ export default class MigrationService {
     }
   }
 
-  public async progress(auth: IMigration): Promise<{ copySuccess: any; copyFail: any }> {
+  public async progress(migrationDTO: IMigrationDTO): Promise<{ migrationSuccess: any; migrationFail: any }> {
     try {
-      const { uniqueKeys, targetUniqueKey, socketId } = auth;
-
-      const { storageData } = auth;
-
-      const { clientId: targetClientId, categoryId: targetCategoryId, blogName: targetBlogName } = CryptoUtils.decrypt(
-        targetUniqueKey
-      );
-
-      const targetAccessToken = storageData[targetClientId].accessToken;
+      const { clientKeys, uniqueKeys, targetUniqueKey, sessionId } = migrationDTO;
+      const { uuid: targetUUID, categoryId: targetCategoryId, blogName: targetBlogName } = targetUniqueKey as any;
+      const { accessToken: targetAccessToken } = clientKeys.find(keys => keys['uuid'] === targetUUID);
 
       const requestCount = uniqueKeys.length;
 
@@ -246,16 +225,14 @@ export default class MigrationService {
         // If you request without delay, an error occurs.
         const delay = 2000 * index;
 
-        const { clientId, blogName, postId } = CryptoUtils.decrypt(uniqueKey);
+        const { uuid, blogName, postId } = uniqueKey as any;
 
-        const { accessToken } = storageData[clientId];
+        const { accessToken } = clientKeys.find(keys => keys['uuid'] === uuid);
 
-        let params: ITistoryApiDTO = {};
-        params = { ...params, accessToken, blogName, postId };
-
-        const post = await this.tistoryService.getPost(params);
+        const post = await this.tistoryService.getPost({ accessToken, blogName, postId } as ITistoryApi);
 
         const { title, date: published, acceptComment, slogan } = post;
+
         const tags = (() => {
           if (post.tags && post.tags.tag) {
             return post.tags.tag.join(',');
@@ -265,28 +242,27 @@ export default class MigrationService {
 
         let { content } = post;
 
-        content = content.replace(/&quot;/g, "'");
-        content = content.replace(/&nbsp;/g, '');
+        content = content.replace(/&quot;/g, '\'').replace(/&nbsp;/g, '');
 
         await new Promise((r) => setTimeout(r, delay));
 
-        let params2: ITistoryApiDTO = {};
-        params2 = {
-          ...params2,
-          ...{ accessToken: targetAccessToken },
-          ...{ blogName: targetBlogName },
+        let postPrams: ITistoryApi = {
+          accessToken: targetAccessToken,
+          blogName: targetBlogName,
           title,
           content,
-          ...{ categoryId: targetCategoryId },
+          categoryId: targetCategoryId,
           slogan,
-          ...{ tag: tags },
+          tag: tags,
           acceptComment,
           published,
         };
 
-        const result = await this.tistoryService.setPost(params2);
+        const result = await this.tistoryService.setPost(postPrams);
+        this.logger.error('migration setPost result : %o' , result);
 
         const statusCode = result && result.status ? result.status : 400;
+
         const socketResponse: {
           totalCount: number;
           originTitle: string;
@@ -308,13 +284,13 @@ export default class MigrationService {
           statusCode,
         };
 
-        if (statusCode === '200') {
+        if (statusCode === 200) {
           socketResponse.targetPostId = result.postId;
           socketResponse.url = result.url;
           socketResponse.progress = index + 1;
         }
 
-        this.socket.to(socketId).emit('migration_progress', socketResponse);
+        this.socket.sockets.to(sessionId).emit('migrationProgress', socketResponse);
 
         return result;
       });
@@ -328,15 +304,59 @@ export default class MigrationService {
             if (f(x, i, arr) === false) return [T, [...F, x]];
             return [[...T, x], F];
           },
-          [[], []]
+          [[], []],
         );
 
-      const [copySuccess, copyFail] = bifilter((post) => post && post.status === '200', responses);
+      const [migrationSuccess, migrationFail] = bifilter((post) => post && post.status === 200, responses);
 
       return {
-        copySuccess,
-        copyFail,
+        migrationSuccess,
+        migrationFail,
       };
+    } catch (e) {
+      this.logger.error(e);
+      throw e;
+    }
+  }
+
+  public async deleteToken(migrationDTO: IMigrationDTO): Promise<object[]> {
+    try {
+
+      const { storageId, uuid } = migrationDTO;
+
+      const hasKey = await this.redis.existsAsync(storageId);
+
+      if(!hasKey) {
+        throw createError.BadRequest();
+      }
+
+      /**
+       *  await this.redis.hrmAsync(storageId, '*:' + uuid);
+       *  hrm. enterprise 6.0 부터 지원.
+       *
+       *  hsacn으로 대체
+       *  cursor가 0 이상인 경우 데이터 적재가 잘못 됨.
+       *
+       */
+      const [ cursor, matchedField ] = await this.redis.send_commandAsync('HSCAN', [storageId, 0, 'MATCH', '*:' + uuid, 'COUNT', 6]);
+
+      if(cursor > 0) {
+        this.logger.error('deleteToken storageId, uuid, cursor %s %s %d ', storageId, uuid, cursor);
+      }
+
+      console.log('matchedField ', matchedField);
+
+
+
+
+      // await this.redis.hmsetAsync(storageId, newData);
+
+
+      const blogs = [];
+
+
+
+      return blogs;
     } catch (e) {
       this.logger.error(e);
       throw e;

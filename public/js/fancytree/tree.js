@@ -1,239 +1,224 @@
 $(function() {
 
-    /*
-     * countChildren 재정의
-     * node type이 paging인 경우 카운트에서 제외함.
-     */
-    $.ui.fancytree._FancytreeNodeClass.prototype.countChildren = function(deep) {
-        var cl = this.children,
-            i,
-            l,
-            n,
-            c;
-        if (!cl) {
-            return 0;
-        }
-        c = cl.length;
-        n = cl.length;
+  /*
+   * countChildren 재정의
+   * node type이 paging인 경우 카운트에서 제외함.
+   */
+  $.ui.fancytree._FancytreeNodeClass.prototype.countChildren = function(deep) {
+    var cl = this.children,
+      i,
+      l,
+      n,
+      c;
+    if (!cl) {
+      return 0;
+    }
+    c = cl.length;
+    n = cl.length;
 
-        let hasPaging = cl.find(n=>n.statusNodeType === "paging");
-        if(hasPaging) {
-            n -= 1;
-        }
-
-        if (deep !== false) {
-            for (i = 0, l = c; i < l; i++) {
-                n += cl[i].countChildren();
-            }
-        }
-
-        return n;
+    let hasPaging = cl.find(n => n.statusNodeType === 'paging');
+    if (hasPaging) {
+      n -= 1;
     }
 
-    const errorAlert = (content) => {
-        $.alert({
-            title: 'Error',
-            icon: 'fa fa-exclamation-triangle',
-            type: 'dark',
-            boxWidth :'400px',
-            useBootstrap: false,
-            animation: 'scale',
-            content: `Something went wrong, please retry again after sometime.<hr>${content}`
-        });
+    if (deep !== false) {
+      for (i = 0, l = c; i < l; i++) {
+        n += cl[i].countChildren();
+      }
     }
 
-    /*
-     * fancytree event
-     */
-    const event = {
-        click: (event, data) => {
-            // data.node.setSelected(true) will work too
-            let node = data.node;
-            let targetType = data.targetType;
-            //To fix a bug that doesn't appear at once when clicking on the lazy folder.
+    return n;
+  };
 
-            if(node.isFolder() && targetType === 'checkbox') {
-                node.toggleSelected();
-            } else if (!node.isFolder() && targetType !== 'checkbox') {
-                node.toggleSelected();
-                return false;
-            }
 
-            if(node.isLazy() && !node.children && node.isExpanded()) {
-                node.toggleExpanded();
-            } else if(node.isFolder() && targetType === 'title') {
-                node.toggleExpanded();
-                return false;
-            }
-        },
-        beforeSelect: (event, data) => {
-            // A node is about to be selected: prevent this for folders:
-            let node = data.node;
+  /*
+   * fancytree event
+   */
+  const event = {
+    click: (event, data) => {
+      // data.node.setSelected(true) will work too
+      let node = data.node;
+      let targetType = data.targetType;
+      //To fix a bug that doesn't appear at once when clicking on the lazy folder.
 
-            if(node.isFolder() && !data.originalEvent){
-                return false;
-            }
-        },
-        lazyLoad: (event, data) =>{
-            let node = data.node;
-            let nodeData = node.data;
+      if (node.isFolder() && targetType === 'checkbox') {
+        node.toggleSelected();
+      } else if (!node.isFolder() && targetType !== 'checkbox') {
+        node.toggleSelected();
+        return false;
+      }
 
-            if(nodeData.isEmpty === "false") {
-                data.result =  $.Deferred((dfd) => {
-                    let req = UTIL.ajax.get("/api/migration/categories", {uniqueKey: nodeData.uniqueKey});
-                    req.done((res) => {
-                        if(res && res.length) {
-                            dfd.resolve(res);
-                        } else {
-                            let postReq = UTIL.ajax.get("/api/migration/posts", {uniqueKey: nodeData.uniqueKey});
-                            postReq.done(dfd.resolve).fail(dfd.reject);
-                        }
-                    }).fail(err => {
-                        err.responseText ? errorAlert(err.responseText) : "";
-                    })
-                });
+      if (node.isLazy() && !node.children && node.isExpanded()) {
+        node.toggleExpanded();
+      } else if (node.isFolder() && targetType === 'title') {
+        node.toggleExpanded();
+        return false;
+      }
+    },
+    beforeSelect: (event, data) => {
+      // A node is about to be selected: prevent this for folders:
+      let node = data.node;
+
+      if (node.isFolder() && !data.originalEvent) {
+        return false;
+      }
+    },
+    lazyLoad: (event, data) => {
+      let node = data.node;
+      let nodeData = node.data;
+
+      if (nodeData.isEmpty === 'false') {
+        data.result = $.Deferred((dfd) => {
+          const req = UTIL.ajax.get('/api/migration/categories',
+            { uniqueKey: { uuid: nodeData.uuid, blogName: nodeData.blogName } });
+
+          req.done((res) => {
+            if (res && res.length) {
+              dfd.resolve(res);
             } else {
-                data.result = {
-                    url: "/api/migration/posts",
-                    data: {
-                        uniqueKey: nodeData.uniqueKey
-                    },
-                    cache: false
-                };
+              const postReq = UTIL.ajax.get('/api/migration/posts',
+                { uniqueKey: { uuid: nodeData.uuid, blogName: nodeData.blogName, categoryId: nodeData.categoryId } });
+
+              postReq.done(dfd.resolve).fail(dfd.reject);
             }
-        },
-        enhanceTitle: (event, data) => {
-            let node = data.node;
+          }).fail(err => {
+            UTIL.modal.alert(err.responseText);
+          });
+        });
+      } else {
+        data.result = {
+          url: '/api/migration/posts',
+          data: {
+            uniqueKey: { uuid: nodeData.uuid, blogName: nodeData.blogName, categoryId: nodeData.categoryId },
+          },
+          cache: false,
+        };
+      }
+    },
+    enhanceTitle: (event, data) => {
+      let node = data.node;
 
-            /*  let childrens = node.getChildren() || [];
-              let hasPaging = childrens.find(n=>n.statusNodeType === "paging");
+      if (node.isFolder() && (node.data.isBlog || node.data.isCategory)) {
+        data.$title.append(`<span style='color: #b3b2b2;'>  (post : ${node.data.isBlog ? node.data.statistics.post : node.data.entries})</span>`);
+      }
 
-              if(hasPaging) {
-                  let count = childrens.length;
-                  data.$title.append(`<span style="color: #b3b2b2;">  (loaded : ${count})</span>`);
-              }*/
+    },
+    loadChildren: (event, data) => {
+      // update node and parent counters after lazy loading
 
-            if(node.isFolder() && (node.data.isBlog || node.data.isCategory)) {
-                data.$title.append(`<span style="color: #b3b2b2;">  (post : ${node.data.isBlog ? node.data.statistics.post :  node.data.entries})</span>`);
-            }
+      let node = data.node;
+      let children = node.children;
 
-        },
-        loadChildren: (event, data) => {
-            // update node and parent counters after lazy loading
+      node.updateCounters();
 
-            let node = data.node;
-            let children = node.children;
+      let postCount = children.find(i => !(i.data.isCategory || i.data.isBlog));
 
-            node.updateCounters();
+      if (node.isFolder() && !node.checkbox && postCount) {
+        node.checkbox = true;
+        //    node.load()
+      }
 
-            let postCount = children.find(i=> !(i.data.isCategory || i.data.isBlog));
+      /* data.node.visit(function(subNode){
+           // Load all lazy/unloaded child nodes
+           // (which will trigger `loadChildren` recursively)
+           if( subNode.isUndefined() && subNode.isExpanded() ) {
+               subNode.load();
+           }
+       });*/
+    },
+    clickPaging: (event, data) => {
+      let node = data.node;
+      let nodeData = node.data;
 
-            if(node.isFolder() && !node.checkbox && postCount) {
-                node.checkbox = true;
-                //    node.load()
-            }
+      let params = {
+        uniqueKey: nodeData.uniqueKey,
+        page: nodeData.page,
+      };
+      node.replaceWith({
+        url: nodeData.url,
+        data: params,
+      }).done(function(res) {
 
-            /* data.node.visit(function(subNode){
-                 // Load all lazy/unloaded child nodes
-                 // (which will trigger `loadChildren` recursively)
-                 if( subNode.isUndefined() && subNode.isExpanded() ) {
-                     subNode.load();
-                 }
-             });*/
-        },
-        clickPaging: (event, data) => {
-            let node = data.node;
-            let nodeData = node.data;
+      });
+    },
+  };
 
-            let params = {
-                uniqueKey : nodeData.uniqueKey,
-                page : nodeData.page
-            }
-            node.replaceWith({
-                url: nodeData.url,
-                data : params
-            }).done(function(res){
+  const treeDnd5opts = (() => {
 
-            });
+    const createMigrationProgressTable = (node, sourceNodes) => {
+      const migrationTargetTitle = (() => {
+        if (node.data.isBlog) {
+          return node.data.name;
+        } else {
+          return node.data.label || node.data.name;
         }
-    }
+      })();
 
-    const treeDnd5opts = (()=> {
+      const totalPostCount = sourceNodes.reduce((acc, node) => {
+        let sum = 0;
 
-        const createMigrationProgressTable = (node, sourceNodes) => {
-            const migrationTargetTitle = (() => {
-                if(node.data.isBlog) {
-                    return node.data.name;
-                } else {
-                    return node.data.label || node.data.name;
-                }
-            })();
+        if (node.data.isBlog) {
+          sum = parseInt(node.data.statistics.post);
+        } else if (node.data.isCategory) {
+          sum = parseInt(node.data.entries);
+        } else {
+          sum += 1;
+        }
+        return acc + sum;
+      }, 0);
 
-            const totalPostCount = sourceNodes.reduce((acc, node) => {
-                let sum = 0;
+      const row = (node) => {
+        const parent = node.parent;
+        const isCategory = node.data.isCategory;
+        const isBlog = node.data.isBlog;
 
-                if(node.data.isBlog) {
-                    sum = parseInt(node.data.statistics.post);
-                } else if(node.data.isCategory) {
-                    sum = parseInt(node.data.entries);
-                } else {
-                    sum += 1;
-                }
-                return acc + sum;
-            }, 0);
+        const location = parent && parent.data && parent.data.label ? parent.data.label : node.title;
 
-            const row = (node) => {
-                const parent = node.parent;
-                const isCategory = node.data.isCategory;
-                const isBlog = node.data.isBlog;
+        const title = (() => {
+          if (isBlog || isCategory) {
+            return `<div class='fa fa-spinner fa-spin fa-2x fa-fw' style='color: #c3c6cf;'></div>`;
+          } else {
+            return node.title;
+          }
+        })();
 
-                const location = parent && parent.data && parent.data.label ? parent.data.label : node.title;
-
-                const title = (() => {
-                    if(isBlog || isCategory) {
-                        return `<div class="fa fa-spinner fa-spin fa-2x fa-fw" style="color: #c3c6cf;"></div>`;
-                    } else {
-                        return node.title;
-                    }
-                })();
-
-                const _row = `
-                <div class="row">
-                    <div class="cell" data-title="Location">
+        const _row = `
+                <div class='row'>
+                    <div class='cell' data-title='Location'>
                         ${location}
                     </div>
-                    <div id="progressTitle${node.data.id}" class="cell" data-title="Title">
+                    <div id='progressTitle${node.data.id}' class='cell' data-title='Title'>
                         ${title}
                     </div>
-                    <div id="progressStatus${node.data.id}" class="cell" data-title="Status">
-                        <div class="fa fa-spinner fa-spin fa-2x fa-fw" style="color: #c3c6cf;"></div>
+                    <div id='progressStatus${node.data.id}' class='cell' data-title='Status'>
+                        <div class='fa fa-spinner fa-spin fa-2x fa-fw' style='color: #c3c6cf;'></div>
                     </div>
-                    <div id="progressResult${node.data.id}" class="cell" data-title="Result">
+                    <div id='progressResult${node.data.id}' class='cell' data-title='Result'>
                         
                     </div>
-                </div>`
+                </div>`;
 
-                return _row;
-            }
+        return _row;
+      };
 
-            const rows = sourceNodes.map(node => row(node));
+      const rows = sourceNodes.map(node => row(node));
 
-            const table = `
+      const table = `
                 <strong>Migration Target Blog/Category :</strong> ${migrationTargetTitle} <br/> 
-                <strong>Total Post Count :</strong> <span id="successCount">0</span> / ${totalPostCount} <hr>
-                <div class="wrapper">
-                    <div id="tableBody" class="table">
-                        <div class="row header blue">
-                            <div class="cell" style="width : 20%">
+                <strong>Total Post Count :</strong> <span id='successCount'>0</span> / ${totalPostCount} <hr>
+                <div class='wrapper'>
+                    <div id='tableBody' class='table'>
+                        <div class='row header blue'>
+                            <div class='cell' style='width : 20%'>
                                 Location
                             </div>
-                            <div class="cell" >
+                            <div class='cell' >
                                 Title
                             </div>
-                            <div class="cell" style="width : 6%">
+                            <div class='cell' style='width : 6%'>
                                 Status
                             </div>
-                            <div class="cell" style="width : 25%">
+                            <div class='cell' style='width : 25%'>
                                 Migration Result
                             </div>
                         </div>
@@ -241,367 +226,323 @@ $(function() {
                     </div>
                 </div> `;
 
-            return table;
+      return table;
+    };
+
+    const migrationProgress = (node, sourceNodes) => {
+      let progressRequest;
+
+      const progressCancelDialog = () => {
+        const _this = this;
+
+        $.confirm({
+          icon: 'fa fa-exclamation-triangle',
+          title: 'Confirmation!',
+          content: 'The work in progress will be cancelled.',
+          boxWidth: '400px',
+          useBootstrap: false,
+          animation: 'scale',
+          type: 'dark',
+          buttons: {
+            ok: {
+              btnClass: 'btn-red',
+              action: function() {
+                progressRequest.abort();
+                _this.close();
+                progressDialog.close();
+              },
+            },
+            cancel: {},
+          },
+        });
+
+        return false;
+      };
+
+      const progressDialogOnOpen = (dialog) => {
+        let _this = progressDialog;
+
+        const uniqueKeys = sourceNodes.map(node => (
+          {
+            uuid: node.data.uuid,
+            blogName: node.data.blogName,
+            categoryId: node.data.categoryId,
+            postId: node.data.postId,
+          }
+        ));
+
+        const data = {
+          uniqueKeys: uniqueKeys,
+          targetUniqueKey: {
+            uuid: node.data.uuid,
+            blogName: node.data.blogName,
+            categoryId: node.data.categoryId,
+          },
         };
 
-        const migrationProgress = (node, sourceNodes) => {
-            let progressRequest;
+        progressRequest = UTIL.ajax.post('/api/migration/progress', data);
 
-            const progressCancelDialog = () => {
-                const _this = this;
+        progressRequest.done((res) => {
+          _this.setType('green');
+          _this.setIcon('fa fa-check');
+          _this.setTitle('Work Complete');
 
-                $.confirm({
-                    icon: 'fa fa-exclamation-triangle',
-                    title: 'Confirmation!',
-                    content: 'The work in progress will be cancelled.',
-                    boxWidth :'400px',
-                    useBootstrap: false,
-                    animation: 'scale',
-                    type: 'dark',
-                    buttons: {
-                        ok: {
-                            btnClass: 'btn-red',
-                            action: function () {
-                                progressRequest.abort();
-                                _this.close();
-                                progressDialog.close();
-                            }
-                        },
-                        cancel :{}
-                    }
-                });
+          _this.buttons.done.enable();
+          _this.buttons.done.show();
+          _this.buttons.close.hide();
+          _this.buttons.close.disable();
 
-                return false;
-            }
+          $.ui.fancytree.getTree('#tree').visit(function(node) {
+            node.setSelected(false);
+          });
 
-            const progressDialogOnOpen = (dialog) => {
-                let _this = progressDialog;
+        }).fail((err) => {
+          UTIL.modal.alert(err.responseText);
+        }).always(() => {
+          socket.disconnect();
+        });
+      };
 
-                const socket = io();
+      const progressDialogContent = createMigrationProgressTable(node, sourceNodes);
 
-                socket.on("migration_progress", function(response) {
-                    let $successCount =  $("#successCount");
-                    let successCount = response.progress || parseInt($successCount.text());
-                    let originTitle = response.originTitle;
-                    let originPostId = response.originPostId;
-                    let originBlogName = response.originBlogName;
-                    let targetBlogName = response.targetBlogName;
-                    let targetCategoryId = response.targetCategoryId;
-                    let targetPostId = response.targetPostId;
-                    let statusCode = response.statusCode;
+      const progressDialog = $.confirm({
+        title: 'Work in progress',
+        icon: 'fa fa-spinner fa-spin',
+        content: progressDialogContent,
+        animation: 'scale',
+        boxWidth: '60%',
+        type: 'dark',
+        useBootstrap: false,
+        closeIcon: function() {
+          return 'close'; // set a button handler, 'aRandomButton' prevents close.
+        },
+        closeIconClass: 'fa fa-close',
+        buttons: {
+          close: {
+            action: progressCancelDialog,
+          },
+          done: {
+            isHidden: true,
+            isDisabled: true,
+            btnClass: 'btn-blue',
+          },
+        },
+        onOpen: progressDialogOnOpen,
+      });
+    };
 
-                    let $progressStatus = $("#progressStatus" + originPostId);
-                    let $progressResult = $("#progressResult" + originPostId);
-                    if(statusCode === "200") {
-                        let blogKey = originBlogName;
-                        let migrationHistory = UTIL.LocalStorage.get(blogKey) || {};
+    const _dragDrop = (node, data) => {
+      let sourceNodes = data.otherNodeList;
 
-                        let targetBlog = migrationHistory[targetBlogName];
+      sourceNodes = sourceNodes.filter(n => !n.isFolder() && n.statusNodeType !== 'paging');
 
-                        if(targetBlog) {
-                            let targetCategory = targetBlog[targetCategoryId] || [];
-                            targetCategory[originPostId] = targetCategory[originPostId] || [];
+      sourceNodes = sourceNodes.reduce(function(pV, cV, cI) {
+        let curr = cV.data.isCategory || cV.data.isBlog ? cV.getSelectedNodes() : [cV];
+        return [...pV, ...curr];
+      }, []);
 
-                            targetCategory[originPostId] = [...[targetPostId], ...targetCategory[originPostId]]
-                            migrationHistory[targetBlogName][targetCategoryId] = targetCategory;
-                        } else {
-                            migrationHistory[targetBlogName]= {
-                                [targetCategoryId]: {
-                                    [originPostId]: [targetPostId]
-                                }
-                            }
-                        }
 
-                        UTIL.LocalStorage.set(blogKey, migrationHistory);
+      /*
+      * 대상 카테고리의 게시물과 옮기려는 게시물의 제목을 비교 하여 중복 검사.
+      * 로드된 게시물에 대해서만 검사함.
+      */
+      /*let childrens = (data.hitMode === "over") ? node.children : node.getParent().children;
+      let titleList = childrens ? childrens.map(item => item.title) : [];
+      let duplicateList = sourceNodes.filter(item=> titleList.includes(item.title)).map(item => item.title);*/
 
-                        $successCount.text(successCount);
-                        $progressStatus.html(`<div class="fa fa-check fa-2x fa-fw" style="color: #78b13f;"></div>`);
-                        $progressResult.html(`<a href="${response.url}" target="popup">${response.url}</a>`);
-                    } else {
-                        // progressRequest.abort();
-                        // socket.disconnect();
+      /*
+      * localStorage 저장된 이력으로 중복 검사.
+      */
+      const duplicates = sourceNodes.reduce((history, item) => {
+        if (item.getParentList() && item.getParentList().length > 1) {
+          let targetBlogNode = node.getLevel() > 1 ? node.data.isBlog ? node : node.getParentList()[1] : node;
+          let targetCategoryId = node.data.id;
+          let { name: targetBlogName, url: targetBlogUrl } = targetBlogNode.data;
 
-                        $progressStatus.html(`<div class="fas fa-exclamation-circle fa-2x fa-fw" style="color:red;"> </div>`);
-                        $progressResult.html(`하루에 새롭게 공개 발행할 수 있는 글은 최대 30 개까지입니다.`);
-                    }
-                });
+          let originBlogNode = item.getParentList()[1];
+          let originBlogKey = originBlogNode.data.name;
 
-                const uniqueKeys = sourceNodes.map(node => node.data.uniqueKey);
+          let migrationHistory = UTIL.LocalStorage.get(originBlogKey) || {};
 
-                const data = {
-                    uniqueKeys : uniqueKeys,
-                    targetUniqueKey : node.data.uniqueKey
-                };
+          let postIds = migrationHistory[targetBlogName]
+            && migrationHistory[targetBlogName][targetCategoryId]
+            && migrationHistory[targetBlogName][targetCategoryId][item.data.id];
 
-                progressRequest = UTIL.ajax.post("/api/migration/progress", data);
-
-                progressRequest.done((res) => {
-                    _this.setType("green");
-                    _this.setIcon("fa fa-check");
-                    _this.setTitle("Work Complete");
-
-                    _this.buttons.done.enable();
-                    _this.buttons.done.show();
-                    _this.buttons.close.hide();
-                    _this.buttons.close.disable();
-
-                    $.ui.fancytree.getTree("#tree").visit(function (node) {
-                        node.setSelected(false);
-                    });
-
-                }).fail((err) => {
-                    err.responseText ? errorAlert(err.responseText) : "";
-                }).always(() => {
-                    socket.disconnect();
-                });
-            }
-
-            const progressDialogContent = createMigrationProgressTable(node, sourceNodes);
-
-            const progressDialog = $.confirm({
-                title: 'Work in progress',
-                icon: 'fa fa-spinner fa-spin',
-                content: progressDialogContent,
-                animation: 'scale',
-                boxWidth :'60%',
-                type: 'dark',
-                useBootstrap: false,
-                closeIcon: function(){
-                    return 'close'; // set a button handler, 'aRandomButton' prevents close.
-                },
-                closeIconClass: 'fa fa-close',
-                buttons: {
-                    close: {
-                        action: progressCancelDialog
-                    },
-                    done: {
-                        isHidden: true,
-                        isDisabled:true,
-                        btnClass: 'btn-blue'
-                    }
-                },
-                onOpen: progressDialogOnOpen
+          if (postIds) {
+            let postHistory = postIds.map(postId => {
+              return {
+                node: item,
+                title: item.title,
+                url: `${targetBlogUrl}/${postId}`,
+              };
             });
+
+            history = [...history, ...postHistory];
+          }
         }
 
-        const _dragDrop = (node, data) => {
-            let sourceNodes = data.otherNodeList;
+        return history;
+      }, []);
 
-            sourceNodes = sourceNodes.filter(n => !n.isFolder() && n.statusNodeType !== "paging");
+      if (duplicates.length) {
+        const confirmContent = duplicates.map((item, index) => `${++index}, <a href='${item.url}' target='_blank'>${item.title}</a>`).join('<br/>');
 
-            sourceNodes = sourceNodes.reduce(function(pV, cV, cI){
-                let curr = cV.data.isCategory || cV.data.isBlog ? cV.getSelectedNodes() : [cV]
-                return [...pV, ...curr];
-            }, []);
+        $.confirm({
+          title: `The migration history exists.`,
+          content: confirmContent,
+          icon: 'fa fa-exclamation-triangle',
+          type: 'red',
+          boxWidth: '40%',
+          useBootstrap: false,
+          buttons: {
+            process: {
+              btnClass: 'btn-blue',
+              keys: ['enter'],
+              action: function() {
+                migrationProgress(node, sourceNodes);
+              },
+            },
+            duplicate: {
+              text: 'Remove Duplicates and process',
+              btnClass: 'btn-red',
+              action: function() {
+                const _this = this;
+                const differenceNodes = sourceNodes.filter(node => !duplicates.find(item => item.node === node));
 
-
-            /*
-            * 대상 카테고리의 게시물과 옮기려는 게시물의 제목을 비교 하여 중복 검사.
-            * 로드된 게시물에 대해서만 검사함.
-            */
-            /*let childrens = (data.hitMode === "over") ? node.children : node.getParent().children;
-            let titleList = childrens ? childrens.map(item => item.title) : [];
-            let duplicateList = sourceNodes.filter(item=> titleList.includes(item.title)).map(item => item.title);*/
-
-            /*
-            * localStorage 저장된 이력으로 중복 검사.
-            */
-            const duplicates = sourceNodes.reduce((history, item) => {
-                if (item.getParentList() && item.getParentList().length > 1) {
-                    let targetBlogNode = node.getLevel() > 1 ? node.data.isBlog ? node : node.getParentList()[1] : node;
-                    let targetCategoryId = node.data.id;
-                    let {name: targetBlogName, url: targetBlogUrl} = targetBlogNode.data;
-
-                    let originBlogNode = item.getParentList()[1];
-                    let originBlogKey = originBlogNode.data.name;
-
-                    let migrationHistory = UTIL.LocalStorage.get(originBlogKey) || {};
-
-                    let postIds = migrationHistory[targetBlogName]
-                        && migrationHistory[targetBlogName][targetCategoryId]
-                        && migrationHistory[targetBlogName][targetCategoryId][item.data.id];
-
-                    if(postIds) {
-                        let postHistory = postIds.map(postId => {
-                            return {
-                                node: item,
-                                title: item.title,
-                                url: `${targetBlogUrl}/${postId}`,
-                            }
-                        });
-
-                        history = [...history, ...postHistory]
-                    }
+                if (differenceNodes.length) {
+                  migrationProgress(node, differenceNodes);
+                } else {
+                  _this.setTitle('Remove Duplicates and process');
+                  _this.setContent('There are no items that can be migrated.');
+                  _this.buttons.duplicate.hide();
+                  _this.buttons.duplicate.disable();
+                  _this.buttons.process.hide();
+                  _this.buttons.process.disable();
+                  return false;
                 }
+              },
+            },
+            cancel: {},
+          },
+        });
+        return;
+      }
 
-                return history
-            }, []);
+      migrationProgress(node, sourceNodes);
+    };
 
-            if (duplicates.length) {
-                const confirmContent = duplicates.map((item, index) => `${++index}, <a href='${item.url}' target='_blank'>${item.title}</a>`).join("<br/>");
+    const _dragStart = (node, data) => {
+      let level = node.getLevel();
 
-                $.confirm({
-                    title: `The migration history exists.`,
-                    content: confirmContent,
-                    icon: 'fa fa-exclamation-triangle',
-                    type: 'red',
-                    boxWidth :'40%',
-                    useBootstrap: false,
-                    buttons: {
-                        process: {
-                            btnClass: 'btn-blue',
-                            keys: ['enter'],
-                            action: function(){
-                                migrationProgress(node, sourceNodes);
-                            }
-                        },
-                        duplicate: {
-                            text: 'Remove Duplicates and process',
-                            btnClass: 'btn-red',
-                            action: function() {
-                                const _this = this;
-                                const differenceNodes = sourceNodes.filter(node => !duplicates.find(item=>item.node === node));
+      let selectedNodes = $.ui.fancytree.getTree(data.tree).getSelectedNodes();
 
-                                if(differenceNodes.length) {
-                                    migrationProgress(node, differenceNodes);
-                                } else {
-                                    _this.setTitle("Remove Duplicates and process");
-                                    _this.setContent("There are no items that can be migrated.");
-                                    _this.buttons.duplicate.hide();
-                                    _this.buttons.duplicate.disable();
-                                    _this.buttons.process.hide();
-                                    _this.buttons.process.disable();
-                                    return false;
-                                }
-                            }
-                        },
-                        cancel: {
+      selectedNodes = selectedNodes.filter(n => !n.isFolder() && n.statusNodeType !== 'paging');
+      let allowDrag = level > 1 && selectedNodes.length ? true : false;
 
-                        }
-                    }
-                });
-                return;
-            }
+      if (!allowDrag) {
+        return false;
+      }
 
-            migrationProgress(node, sourceNodes);
-        }
+      data.effectAllowed = 'all';
+      return true;
+    };
 
-        const _dragStart = (node, data) => {
-            let level = node.getLevel();
+    const _dragEnter = (node, data) => {
+      let sourceNodes = data.otherNodeList;
+      let treeOrigin = sourceNodes.find(o => o.tree._ns === '.fancytree-2');
 
-            let selectedNodes = $.ui.fancytree.getTree(data.tree).getSelectedNodes();
+      if (node.tree._ns === data.otherNode.tree._ns || treeOrigin || node.getLevel() === 1) {
+        return false;
+      }
 
-            selectedNodes = selectedNodes.filter(n => !n.isFolder() && n.statusNodeType !== "paging");
-            let allowDrag = level > 1 && selectedNodes.length ? true : false;
+      return true;
+    };
 
-            if(!allowDrag) {
-                return false;
-            }
+    const _dragOver = (node, data) => {
+      // data.node.info("dragOver", data);
 
-            data.effectAllowed = "all";
-            return true;
-        }
+      data.hitMode = 'over';
+      data.dropEffect = data.dropEffectSuggested;  //"link";
+      return true;
+    };
 
-        const _dragEnter = (node, data) => {
-            let sourceNodes = data.otherNodeList;
-            let treeOrigin = sourceNodes.find(o=>o.tree._ns === ".fancytree-2");
+    const _dnd5opts = {
+      preventVoidMoves: true, // Prevent moving nodes 'before self', etc.
+      preventRecursion: true, // Prevent dropping nodes on own descendants
+      preventSameParent: true, // Prevent dropping nodes under the same direct parent
+      preventForeignNodes: false,
+      preventNonNodes: true,
+      preventLazyParents: true,
+      dropEffectDefault: 'copy',
+      autoExpandMS: 1000,
+      multiSource: true,  // drag all selected nodes (plus current node)
+      focusOnClick: true,
+      refreshPositions: true,
+      dragStart: _dragStart,
+      dragEnter: _dragEnter,
+      dragOver: _dragOver,
+      dragDrop: _dragDrop,
+    };
 
-            if (node.tree._ns === data.otherNode.tree._ns || treeOrigin || node.getLevel() === 1 ) {
-                return false;
-            }
-
-            return true;
-        }
-
-        const _dragOver = (node, data) => {
-            // data.node.info("dragOver", data);
-
-            data.hitMode = "over";
-            data.dropEffect = data.dropEffectSuggested;  //"link";
-            return true;
-        }
-
-        const _dnd5opts = {
-            preventVoidMoves: true, // Prevent moving nodes 'before self', etc.
-            preventRecursion: true, // Prevent dropping nodes on own descendants
-            preventSameParent: true, // Prevent dropping nodes under the same direct parent
-            preventForeignNodes:false,
-            preventNonNodes: true,
-            preventLazyParents: true,
-            dropEffectDefault : "copy" ,
-            autoExpandMS: 1000,
-            multiSource: true,  // drag all selected nodes (plus current node)
-            focusOnClick: true,
-            refreshPositions: true,
-            dragStart: _dragStart,
-            dragEnter: _dragEnter,
-            dragOver: _dragOver,
-            dragDrop:_dragDrop
-        }
-
-        return _dnd5opts;
-    })();
+    return _dnd5opts;
+  })();
 
 
-    let _TREE_OPTION = {
-        extensions: ["dnd5", "multi", "glyph", "childcounter"],
-        source: { url: "/api/migration/blogs", cache: true},
-        checkbox: true,
-        selectMode:3,
-        clickFolderMode:3,
-        autoScroll: true,
-        keyboard:true,
-        childcounter: {
-            deep: true,
-            hideZeros: true,
-            hideExpanded: false
-        },
-        click:event.click,
-        beforeSelect: event.beforeSelect,
-        lazyLoad: event.lazyLoad,
-        enhanceTitle :  event.enhanceTitle,
-        loadChildren: event.loadChildren,
-        clickPaging: event.clickPaging,
-        glyph: {
-            preset: "awesome5",
-            map: {}
-        },
-        dnd5: treeDnd5opts
-    }
+  let _TREE_OPTION = {
+    extensions: ['dnd5', 'multi', 'glyph', 'childcounter'],
+    source: { url: '/api/migration/blogs', cache: true },
+    checkbox: true,
+    selectMode: 3,
+    clickFolderMode: 3,
+    autoScroll: true,
+    keyboard: true,
+    childcounter: {
+      deep: true,
+      hideZeros: true,
+      hideExpanded: false,
+    },
+    click: event.click,
+    beforeSelect: event.beforeSelect,
+    lazyLoad: event.lazyLoad,
+    enhanceTitle: event.enhanceTitle,
+    loadChildren: event.loadChildren,
+    clickPaging: event.clickPaging,
+    glyph: {
+      preset: 'awesome5',
+      map: {},
+    },
+    dnd5: treeDnd5opts,
+  };
 
-    window.treeInitialize = () => {
-        $("#tree").fancytree(_TREE_OPTION);
+  window.treeInitialize = () => {
+    $('#tree').fancytree(_TREE_OPTION);
 
-        // ES9 object destructuring
-        let {childcounter, loadChildren, ..._TREE_OPTION2} = {..._TREE_OPTION};
-        _TREE_OPTION2.checkbox = false;
-        _TREE_OPTION2.extensions = ["dnd5", "multi", "glyph"];
-        _TREE_OPTION2.postProcess = function (event, data) {
-            if(data.response) {
-                let list = data.response.filter(item => item.folder).map(item => {
-                    item.lazy = !!item.children;
+    // ES9 object destructuring
+    let { childcounter, loadChildren, ..._TREE_OPTION2 } = { ..._TREE_OPTION };
+    _TREE_OPTION2.checkbox = false;
+    _TREE_OPTION2.extensions = ['dnd5', 'multi', 'glyph'];
+    _TREE_OPTION2.postProcess = function(event, data) {
+      if (data.response) {
+        let list = data.response.filter(item => item.folder).map(item => {
+          item.lazy = !!item.children;
 
-                    if(item.children && item.children.length) {
-                        item.children = item.children.filter((child) => {
-                            child.lazy = !child.parent;
-                            return child;
-                        });
-                    }
-                    return item;
-                });
+          if (item.children && item.children.length) {
+            item.children = item.children.filter((child) => {
+              child.lazy = !child.parent;
+              return child;
+            });
+          }
+          return item;
+        });
 
-                data.result = list;
-            }
-        }
+        data.result = list;
+      }
+    };
 
-        $("#tree2").fancytree(_TREE_OPTION2);
-    }
+    $('#tree2').fancytree(_TREE_OPTION2);
+  };
 
-    const isVisible = $(".modal-body.modal-body-step-3").hasClass("is-showing");
-
-    if(isVisible) {
-        treeInitialize();
-    }
+  treeInitialize();
 
 });
 

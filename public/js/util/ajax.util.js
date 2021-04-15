@@ -5,44 +5,66 @@ if (!window['UTIL']) window['UTIL'] = {};
 
     UTIL.ajax = (() => {
         const context = {
-            get: function(url, params)  {
+            get: function(url, data)  {
                 return this.ajax({
-                    type: 'get',
-                    url: url,
-                    data: params
+                    type: 'GET',
+                    url,
+                    data
                 });
             },
-            post: function(url, params)  {
+            post: function(url, data)  {
                 return this.ajax({
-                    type: 'post',
-                    url: url,
-                    data: params
+                    type: 'POST',
+                    url,
+                    data
                 });
             },
-            put: function(url, params)  {
+            put: function(url, data)  {
                 return this.ajax({
-                    type: 'put',
-                    url: url,
-                    data: params
+                    type: 'PUT',
+                    url,
+                    data
                 });
             },
-            delete: function(url, params) {
+            delete: function(url, data) {
                 return this.ajax({
-                    type: 'delete',
-                    url: url,
-                    data: params
+                    type: 'DELETE',
+                    url,
+                    data
+                });
+            },
+            patch: function(url, data) {
+                return this.ajax({
+                    type: 'PATCH',
+                    url,
+                    data
+                });
+            },
+            head: function(url) {
+                return this.ajax({
+                    type: 'HEAD',
+                    url: url
                 });
             },
             ajax: (options) => {
-                let ajaxOption = {
-                    type: 'post',
-                    cache: false,
-                    dataType: "json",
-                    contentType: "application/json; charset=utf-8"
+                const allowMethod = ['POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'].includes(options.type);
+
+                if (allowMethod) {
+                    options.data = JSON.stringify(options.data);
+                    options.headers = {
+                        'X-HTTP-Method-Override': options.type
+                    }
+
+                    options.type = 'POST';
                 }
 
-                if (['post', 'put', 'delete'].includes(options.type)) {
-                    options.data = JSON.stringify(options.data);
+                let ajaxOption = {
+                    cache: false,
+                    dataType: 'json',
+                    contentType: 'application/json; charset=utf-8',
+                    headers: {
+                        'X-HTTP-Method-Override': options.type
+                    }
                 }
 
                 ajaxOption = $.extend(ajaxOption, options);
@@ -54,18 +76,3 @@ if (!window['UTIL']) window['UTIL'] = {};
         return context
     })();
 })(jQuery);
-/*
-
-helper.modal = {
-    errorAlert : (content) => {
-        return $.alert({
-            title: 'Error',
-            icon: 'fa fa-exclamation-triangle',
-            type: 'red',
-            boxWidth :'400px',
-            useBootstrap: false,
-            animation: 'scale',
-            content: content,
-        });
-    }
-}*/

@@ -9,57 +9,45 @@ append head
   link(rel='stylesheet', href='/css/index.css')
   link(rel='stylesheet', href='/css/fancytree.css')
 
-  script(src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.0/jquery.fancytree-all.min.js" )
+  script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.0/jquery.fancytree-all.min.js' )
   script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.2/jquery.validate.min.js')
   script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.js')
-  script(src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/js/fontawesome.min.js" )
+  script(src='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/js/fontawesome.min.js' )
   //script(src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js" )
   script(src='/socket.io/socket.io.js')
   script(src='/js/index.js')
+  script(src='/js/socket.js')
   script(src='/js/util/ajax.util.js')
   script(src='/js/util/localStorage.util.js')
+  script(src='/js/util/modal.js')
   script(src='/js/fancytree/tree.js')
 
 block content
-  .modal-wrap
-    .modal-header
-      span(class={'is-active': step < 2 })
-      span(class={'is-active': step === 2 })
-      span(class={'is-active': step === 3 })
-
-    .modal-bodies
-      .modal-body.modal-body-step-1(class={'is-showing': step < 2 })
-        .layout-title Authentication
-        .layout-description Main storage definition.
-        form(id="form1" name="form1" action="/api/auth/tistory" method="get" target="auth")
-          +inputText("clientId", "94261cb1f889d48468dcc1f50a9c90dc")(placeholder="client id")
-          +inputText("clientSecret", "94261cb1f889d48468dcc1f50a9c90dc88904ef4d995eee96b6c43c12990400e049a5860")(placeholder="client secret")
-          +inputText("callbackUrl", "http://localhost:3000/api/auth/callback")(placeholder="callback url")
-          .text-center
-            .button#btnSend send
-
-      .modal-body.modal-body-step-2(class={'is-showing': step === 2 })
-        .layout-title Authentication
-        .layout-description You can add another client id.
-        if storages
-          .layout-description.tal client id list.
-           ul
-            each storage in storages
-             li #{storage.clientId}
-
-        form(id="form2" name="form2" action="/api/auth/tistory" method="get" target="auth")
-          +inputText("clientId", "b1d0fea2bfa1193798bddee0bcc260c4")(placeholder="client id")
-          +inputText("clientSecret", "b1d0fea2bfa1193798bddee0bcc260c477a9255b7f7e61aec6a1ddc10024d309dbcc8d29")(placeholder="client secret")
-          +inputText("callbackUrl", "http://localhost:3000/api/auth/callback")(placeholder="callback url")
-          .text-center
-            .button#btnAdd.mr-5
-              i.fas.fa-plus.mr-5
-              |add to storage
-            .button.add-button#btnNext next
-
-      .modal-body.modal-body-step-3(class={'is-showing': step === 3 })
-        .layout-title Step 3
-        .layout-description Select the post you want to send, then drag and drop to the destination.
+  .wrapper
+    .token-container
+      h2.theme-color Get an Access Token
+      p.text-large.theme-color The user is identified by the information initially entered.
+      form(id="form")
+        p
+          | Client ID:
+          +inputText('clientId', '94261cb1f889d48468dcc1f50a9c90dc')(placeholder='Enter Client ID')
+        p
+          | Client Secret:
+          +inputText('clientSecret', '94261cb1f889d48468dcc1f50a9c90dc88904ef4d995eee96b6c43c12990400e049a5860')(placeholder="Enter Client Secret")
+        .button-section
+          button#btnGetToken.btn
+            | Get Access Token
+      .token-list-section
+        h3 Token List
+        p.text-large.theme-color
+          |Registered token information is displayed here.
+          if storages
+            ul#tokenList.asterisk
+              each storage, index  in storages
+                li #{storage.clientId.slice(0, 15)}
+                  span !{storage.clientId.slice(16).replace(/(?<=.{0})./gi, "*")}
+                  span.close(data-id='delToken' data-uuid=storage.uuid) x
+    .tree-container
+      .tree-section
         div#tree
         div#tree2
-

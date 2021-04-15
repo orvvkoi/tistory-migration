@@ -1,11 +1,11 @@
+import createError from 'http-errors';
 import jwt from 'jsonwebtoken';
 import { Service, Inject } from 'typedi';
 import querystring from 'querystring';
 import { v4 as uuidv4 } from 'uuid';
-import CryptoUtils from '../utils/CryptoUtils';
 import config from '../config';
-import { ITistoryAuth } from '../interfaces/ITistory';
-import RequestUtils from '../utils/RequestUtils';
+import { ITistoryAuth, ITistoryAuthError } from '../interfaces';
+import { axios, crypto } from '../utils';
 
 @Service()
 export default class OAuthService {
@@ -35,18 +35,25 @@ export default class OAuthService {
     const hasKey = !!(storageId && (await this.redis.existsAsync(storageId)));
     this.logger.debug(`OAuthService setStorage storageId, hasKey : %s %s`, storageId, hasKey);
 
-    storageId = hasKey ? storageId : uuidv4().replace(/-/g, '');
-    uuid = hasKey ? uuidv4().replace(/-/g, '') : storageId;
+    // const clientIds = await this.redis.send_commandAsync("HSCAN", [storageId, 0, "MATCH", "clientId:*", "COUNT", 10]);
+    // const storageValues = await this.redis.hvals(storageId);
 
-    /*  const keyStorage = hasKey && await this.redis.hgetallAsync(uuid);
-      this.logger.debug(`OAuthService setStorage keyStorage : %o`, keyStorage); */
+    storageId = hasKey ? storageId : uuidv4().replace(/-/g, '');
+
+    const keyStorage: object = await this.redis.hgetallAsync(storageId);
+    // Return object after clientId duplicate check
+    const duplicateKeyObj = keyStorage ? Object.keys(keyStorage).find(key => keyStorage[key] === clientId) : '';
+
+    uuid = hasKey
+      ? duplicateKeyObj
+        ? duplicateKeyObj.split('clientId:')[1]
+        : uuidv4().replace(/-/g, '')
+      : storageId;
 
     const newData: { [key: string]: string } = {
-      [`clientId.${uuid}`]: clientId,
-      [`clientSecret.${uuid}`]: clientSecret,
+      [`clientId:${uuid}`]: clientId,
+      [`clientSecret:${uuid}`]: clientSecret,
     };
-    this.logger.debug(`OAuthService setStorage newData : %o`, newData);
-    this.logger.debug(`OAuthService setStorage storageId : %o`, storageId);
 
     await this.redis.hmsetAsync(storageId, newData);
 
@@ -60,14 +67,14 @@ export default class OAuthService {
     try {
       const auth = await this.setStorage(tistoryAuth);
 
-      const { uuid, clientId, callbackUrl, state } = auth;
+      const { uuid, clientId, state } = auth;
 
-      const encryptState = CryptoUtils.encrypt({ state });
+      const encryptState = crypto.encrypt({ state });
       this.logger.debug('authentication encrypt encryptState %s', encryptState);
 
       const queryParams = querystring.stringify({
         client_id: clientId,
-        redirect_uri: callbackUrl,
+        redirect_uri: config.tistory.redirectUri,
         response_type: 'code',
         output: 'json',
         state: encryptState,
@@ -85,31 +92,37 @@ export default class OAuthService {
   public async authorization(tistoryAuth: ITistoryAuth): Promise<{ newToken: string }> {
     try {
       let { storageId } = tistoryAuth;
-      const { socketId, state } = tistoryAuth;
-      const { code, error, error_reason: errorReason } = tistoryAuth;
+      const { code, state, sessionId } = tistoryAuth;
+      const { error: callbackErr, error_reason: callbackErrReason, error_description: callbackErrDesc  }: ITistoryAuthError = tistoryAuth;
 
 
-      if (error) {
-        this.logger.error('authorization error : %s %s' ,error, errorReason);
-
-        this.socket.to(socketId).emit('auth_status', {
-          status: 'fail'
+      if (callbackErr) {
+        this.socket.sockets.to(sessionId).emit('authStatus', {
+          status: 400,
+          title: callbackErr,
+          message: callbackErrReason || callbackErrDesc,
         });
 
-        throw new Error(errorReason);
+        throw createError.BadRequest(callbackErrReason || callbackErrDesc);
       }
 
-      const { state: requestClientId } = CryptoUtils.decrypt(state.replace(/ /g, '+'));
-      this.logger.debug('authorization requestClientId %s', requestClientId);
+      const { state: requestUuid } = crypto.decrypt(state.replace(/ /g, '+'));
+
+      if(!requestUuid) {
+        throw createError.BadRequest('Authorization code invalid');
+      }
 
       const hasKey = !!(storageId && (await this.redis.existsAsync(storageId)));
-      storageId = hasKey ? storageId : requestClientId;
+      storageId = hasKey ? storageId : requestUuid;
 
       const clientKeys = await this.redis.hgetallAsync(storageId);
 
+      const clientId = clientKeys[`clientId:${requestUuid}`]
+      const clientSecret = clientKeys[`clientSecret:${requestUuid}`]
+
       const queryParams = querystring.stringify({
-        client_id: clientKeys[`clientId.${requestClientId}`],
-        client_secret: clientKeys[`clientSecret.${requestClientId}`],
+        client_id: clientId,
+        client_secret: clientSecret,
         code,
         redirect_uri: config.tistory.redirectUri,
         grant_type: 'authorization_code',
@@ -117,32 +130,30 @@ export default class OAuthService {
       });
 
       const url = `${config.tistory.accessTokenUri}?${queryParams}`;
-      this.logger.debug(`authorization accessTokenUri : %s`, url);
+      const result = await axios.get(url);
 
-      console.log("url ", url);
-      const result = await RequestUtils.get(url);
-
-      const { access_token: accessToken, error: tokenError, error_description: errorDescription } = result.data;
+      const { access_token: accessToken, error: tokenError, error_description: tokenErrorDesc } = result.data;
 
       if (tokenError) {
-        this.logger.error(`authorization tokenError : %s %s`, tokenError, tokenError);
-
-        this.socket.to(socketId).emit('auth_status', {
-          status: 'fail',
-          clientId: requestClientId
+        this.socket.sockets.to(sessionId).emit('authStatus', {
+          status: 400,
+          title: tokenError,
+          message: tokenErrorDesc,
+          clientId: requestUuid
         });
 
-        throw new Error(errorDescription);
+        throw createError.BadRequest(tokenErrorDesc);
       }
 
-      await this.redis.hmsetAsync(storageId, `accessToken.${requestClientId}`, accessToken);
+      await this.redis.hmsetAsync(storageId, `accessToken:${requestUuid}`, accessToken);
 
-      this.socket.to(socketId).emit('auth_status', {
-        status: 'success',
-        clientId: requestClientId
+      this.socket.sockets.to(sessionId).emit('authStatus', {
+        status: 204,
+        uuid: requestUuid,
+        clientIdPrefix: clientId.slice(0, 15),
+        clientIdSuffix: clientId.slice(16).replace(/(?<=.{0})./gi, "*")
       });
 
-      console.log('token.storageId 33 ', storageId);
       const newToken = this.generateToken({
         storageId: storageId,
       });

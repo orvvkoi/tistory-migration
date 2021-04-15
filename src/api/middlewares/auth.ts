@@ -33,12 +33,13 @@ const getToken = (req) => {
   return cookie;
 };
 
-const isAuth = expressJwt({
-  credentialsRequired: false,
+const decodeOptions = {
   secret: config.jwtSecret,
   algorithms: [config.jwtAlgorithm],
   requestProperty: config.authProperty, // default: userProperty
   getToken,
-});
+}
 
-export default isAuth;
+export const authenticatedMiddleware = expressJwt({...decodeOptions, credentialsRequired: true});
+export const looselyAuthenticatedMiddleware = expressJwt({ ...decodeOptions,  credentialsRequired: false});
+

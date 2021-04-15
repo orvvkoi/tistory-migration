@@ -1,8 +1,9 @@
+import createError from 'http-errors';
 import { Service, Inject } from 'typedi';
 import querystring from 'querystring';
 import config from '../config';
-import { ITistoryApiDTO } from '../interfaces/ITistory';
-import RequestUtils from '../utils/RequestUtils';
+import { ITistoryApi } from '../interfaces/ITistory';
+import axios from '../utils/axios';
 
 @Service('TistoryService')
 export default class TistoryService {
@@ -11,7 +12,7 @@ export default class TistoryService {
   ) {
   }
 
-  public async getBlogInfo(tistoryApiDTO: ITistoryApiDTO) {
+  public async getBlogInfo(tistoryApiDTO: ITistoryApi) {
     try {
       const queryParams = querystring.stringify({
         access_token: tistoryApiDTO.accessToken,
@@ -20,7 +21,7 @@ export default class TistoryService {
 
       const url = `${config.tistory.baseUri}/blog/info?${queryParams}`;
 
-      const data = await RequestUtils.get(url);
+      const data = await axios.get(url);
 
       return this.parser(data);
     } catch (e) {
@@ -29,7 +30,7 @@ export default class TistoryService {
     }
   }
 
-  public async getCategoryList(tistoryApiDTO: ITistoryApiDTO) {
+  public async getCategoryList(tistoryApiDTO: ITistoryApi) {
     try {
       const queryParams = querystring.stringify({
         access_token: tistoryApiDTO.accessToken,
@@ -39,30 +40,31 @@ export default class TistoryService {
 
       const url = `${config.tistory.baseUri}/category/list?${queryParams}`;
 
-      const data = await RequestUtils.get(url);
+      const data = await axios.get(url);
+      const { categories } = this.parser(data);
 
-      return this.parser(data);
+      return categories;
     } catch (e) {
       this.logger.error(e);
       throw e;
     }
   }
 
-  public async getPostList(tistoryApiDTO: ITistoryApiDTO) {
+  public async getPostList(tistoryApi: ITistoryApi) {
     try {
       const queryParams = querystring.stringify({
-        access_token: tistoryApiDTO.accessToken,
-        blogName: tistoryApiDTO.blogName,
-        page: tistoryApiDTO.page,
+        access_token: tistoryApi.accessToken,
+        blogName: tistoryApi.blogName,
+        page: tistoryApi.page,
         count: 30,
         output: 'json',
       });
 
       const url = `${config.tistory.baseUri}/post/list?${queryParams}${
-        tistoryApiDTO.categoryId ? `&categoryId=${tistoryApiDTO.categoryId}` : ``
+        tistoryApi.categoryId ? `&categoryId=${tistoryApi.categoryId}` : ``
       }`;
 
-      const data = await RequestUtils.get(url);
+      const data = await axios.get(url);
 
       const { posts, page, count, totalCount } = this.parser(data);
 
@@ -73,7 +75,7 @@ export default class TistoryService {
     }
   }
 
-  public async getPost(tistoryApiDTO: ITistoryApiDTO) {
+  public async getPost(tistoryApiDTO: ITistoryApi) {
     try {
       const queryParams = querystring.stringify({
         access_token: tistoryApiDTO.accessToken,
@@ -84,7 +86,7 @@ export default class TistoryService {
 
       const url = `${config.tistory.baseUri}/post/read?${queryParams}`;
 
-      const data = await RequestUtils.get(url);
+      const data = await axios.get(url);
 
       return this.parser(data);
     } catch (e) {
@@ -103,7 +105,7 @@ export default class TistoryService {
                          tag = '',
                          acceptComment = 1,
                          published = '',
-                       }: ITistoryApiDTO) {
+                       }: ITistoryApi) {
     try {
       const queryParams = querystring.stringify({
         access_token: accessToken,
@@ -119,9 +121,9 @@ export default class TistoryService {
         output: 'json',
       });
 
-      const url = `${config.tistory.baseUri}/post/write?${queryParams}`;
+      const url = `${config.tistory.baseUri}/post/write`;
 
-      const data = await RequestUtils.get(url);
+      const data = await axios.post(url, queryParams);
 
       return this.parser(data);
     } catch (e) {

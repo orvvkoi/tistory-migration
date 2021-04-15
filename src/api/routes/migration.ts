@@ -1,13 +1,15 @@
 import { Router, Request, Response, NextFunction } from 'express';
-
+import createError from 'http-errors';
 import { Container, Inject } from 'typedi';
 import { celebrate, Joi, Segments } from 'celebrate';
 import { Logger } from 'winston';
 import middlewares from '../middlewares';
 import OAuthService from '../../services/tistory.auth';
 import MigrationService from '../../services/migration';
-import { IMigration } from '../../interfaces/IMigration';
+import { IMigrationDTO, IUniqueKey } from '../../interfaces';
 import config from '../../config';
+import logger from '../../loaders/logger';
+import socketIO from 'socket.io';
 
 const route = Router();
 
@@ -16,75 +18,87 @@ export default (app) => {
 
   route.get(
     '/',
-    middlewares.isAuth,
-    middlewares.migrationMiddleware,
+    [
+      middlewares.looselyAuthenticatedMiddleware,
+      middlewares.migrationMiddleware,
+    ],
     celebrate({
       [Segments.COOKIES]: Joi.object({
         [config.tempForAuthCookieName]: Joi.string(),
       }).unknown(),
     }),
-    async (req: Request, res: Response) => {
+    async (req: Request, res: Response, next) => {
       try {
 
-        console.log(`test req.session.id ||||||${config.jwtSecret}|||||||${config.jwtAlgorithm}||||||||`);
-        console.log("test req.session.id ", req.session.id);
-        console.log("test req.token ", req[config.authProperty]);
+        //console.log('req.clientKeys ', req.clientKeys);
+        logger.debug('socketId : %s ', req.sessionID);
+        logger.debug('session : %s', JSON.stringify(req.session));
+
 
         if (!req.storageId) {
           return res.render('index', { step: 1 });
         }
 
-        const { storageData } = req;
+        const migrationDto: IMigrationDTO = req as IMigrationDTO;
 
-        const storages = Object.values(storageData).filter((storage: any) => storage.accessToken);
+        const storages = migrationDto.clientKeys.filter((storage: any) => storage.accessToken);
 
         if (storages.length) {
           res.render('index', {
-            step: 3,
             storages,
           });
         } else {
           res.render('index', { step: 1 });
         }
       } catch (e) {
-        res.render('index', { step: 1 });
+        return next(e);
       }
     },
   );
 
-  route.get('/blogs', middlewares.migrationMiddleware, async (req: Request, res: Response, next: NextFunction) => {
-    const logger: Logger = Container.get('logger');
+  route.get('/blogs', [
+      middlewares.authenticatedMiddleware,
+      middlewares.migrationMiddleware,
+    ],
+    async (req: Request, res: Response, next: NextFunction) => {
+      const logger: Logger = Container.get('logger');
 
-    try {
-      const auth: IMigration = { ...req.query, ...{ storageData: req.storageData } };
+      try {
 
-      const migrationServiceInstance = Container.get(MigrationService);
+        const migrationDto: IMigrationDTO = { ...req.query, clientKeys: req.clientKeys } as IMigrationDTO;
 
-      const blogs = await migrationServiceInstance.getBlogList(auth);
+        const migrationServiceInstance = Container.get(MigrationService);
+        const blogs = await migrationServiceInstance.getBlogList(migrationDto);
 
-      res.json(blogs);
-    } catch (e) {
-      logger.error('🔥 error: %o', e);
-      return next(e);
-    }
-  });
+        res.json(blogs);
+      } catch (e) {
+        logger.error('🔥 error: %o', e);
+        return next(e);
+      }
+    });
 
   route.get(
     '/categories',
-    middlewares.migrationMiddleware,
+    [
+      middlewares.authenticatedMiddleware,
+      middlewares.migrationMiddleware,
+    ],
     celebrate({
       [Segments.QUERY]: Joi.object({
-        uniqueKey: Joi.string().required(),
+        uniqueKey: Joi.object().keys({
+          uuid: Joi.string().alphanum(),
+          blogName: Joi.string(),
+        }).required(),
       }).unknown(),
     }),
     async (req: Request, res: Response, next: NextFunction) => {
       const logger: Logger = Container.get('logger');
 
       try {
-        const auth: IMigration = { ...req.query, ...{ storageData: req.storageData } };
+        const migrationDto: IMigrationDTO = { ...req.query, clientKeys: req.clientKeys } as IMigrationDTO;
 
         const migrationServiceInstance = Container.get(MigrationService);
-        const categories = await migrationServiceInstance.getCategoryList(auth);
+        const categories = await migrationServiceInstance.getCategoryList(migrationDto);
 
         res.json(categories);
       } catch (e) {
@@ -96,20 +110,27 @@ export default (app) => {
 
   route.get(
     '/posts',
-    middlewares.migrationMiddleware,
+    [
+      middlewares.authenticatedMiddleware,
+      middlewares.migrationMiddleware,
+    ],
     celebrate({
       [Segments.QUERY]: Joi.object({
-        uniqueKey: Joi.string().required(),
+        uniqueKey: Joi.object().keys({
+          uuid: Joi.string().alphanum(),
+          blogName: Joi.string(),
+          categoryId: Joi.number(),
+        }).required(),
       }).unknown(),
     }),
     async (req: Request, res: Response, next: NextFunction) => {
       const logger: Logger = Container.get('logger');
 
       try {
-        const auth: IMigration = { ...req.query, ...{ storageData: req.storageData } };
+        const migrationDto: IMigrationDTO = { ...req.query, clientKeys: req.clientKeys } as IMigrationDTO;
 
         const migrationServiceInstance = Container.get(MigrationService);
-        const posts = await migrationServiceInstance.getPostList(auth);
+        const posts = await migrationServiceInstance.getPostList(migrationDto);
 
         res.json(posts);
       } catch (e) {
@@ -121,29 +142,68 @@ export default (app) => {
 
   route.post(
     '/progress',
-    middlewares.migrationMiddleware,
+    [
+      middlewares.authenticatedMiddleware,
+      middlewares.migrationMiddleware,
+    ],
     celebrate({
       [Segments.BODY]: Joi.object({
-        uniqueKeys: Joi.array().items(Joi.string()).required(),
-        targetUniqueKey: Joi.string().required(),
+
+        uniqueKeys: Joi.array().items(Joi.object({
+          uuid: Joi.string().alphanum(),
+          postId: Joi.number(),
+          blogName: Joi.string(),
+          categoryId: Joi.number(),
+        })).required(),
+        targetUniqueKey: Joi.object({
+          uuid: Joi.string().alphanum(),
+          blogName: Joi.string(),
+          categoryId: Joi.number(),
+        }).required(),
       }),
     }),
     async (req: Request, res: Response, next: NextFunction) => {
       const logger: Logger = Container.get('logger');
 
       try {
-        const auth: IMigration = { ...req.body, ...{ storageData: req.storageData } };
+        const migrationDto: IMigrationDTO = { ...req.body, clientKeys: req.clientKeys } as IMigrationDTO;
 
-        auth.socketId = req.session.socketId as string;
+        migrationDto.sessionId = req.sessionID;
 
         const migrationServiceInstance = Container.get(MigrationService);
-        const progress = await migrationServiceInstance.progress(auth);
+        const { migrationSuccess, migrationFail } = await migrationServiceInstance.progress(migrationDto);
 
-        res.json(progress);
+        res.json({ migrationSuccess, migrationFail });
       } catch (e) {
         logger.error('🔥 error: %o', e);
         return next(e);
       }
     },
   );
+
+  route.delete('/tokens/:uuid', [
+      middlewares.authenticatedMiddleware,
+      middlewares.migrationMiddleware,
+    ],
+    celebrate({
+      [Segments.PARAMS]: Joi.object({
+        uuid: Joi.string().alphanum(),
+      }).required(),
+    }),
+    async (req: Request, res: Response, next: NextFunction) => {
+      const logger: Logger = Container.get('logger');
+
+      try {
+
+        const migrationDTO: IMigrationDTO = { ...req.params, storageId: req.storageId} as IMigrationDTO;
+
+        const migrationServiceInstance = Container.get(MigrationService);
+        const blogs = await migrationServiceInstance.deleteToken(migrationDTO);
+
+        res.json(blogs);
+      } catch (e) {
+        logger.error('🔥 error: %o', e);
+        return next(e);
+      }
+    });
 };

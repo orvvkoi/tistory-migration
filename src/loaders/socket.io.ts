@@ -1,11 +1,17 @@
-import { Server } from "http";
-import socketIO from "socket.io";
+import { Server } from 'http';
+import socketIO from 'socket.io';
 
 export default class SocketServer {
   private readonly io: socketIO.Server;
 
   constructor(server: Server) {
-    this.io = new socketIO.Server(server);
+    this.io = new socketIO.Server(server, {
+      transports: [
+        'websocket',
+        'polling'
+      ]
+    });
+
     this.listeners();
   }
 
@@ -13,42 +19,30 @@ export default class SocketServer {
     return this.io;
   }
 
-  public test() {
-    console.log('test 11111111111111111111111');
-  }
-
   private listeners() {
+    this.io.of("/").adapter.on("create-room", (room) => {
+      console.log(`room ${room} was created`);
+    });
 
-    /*this.io.use((socket, next) => {
-      next();
-    });*/
-
+    this.io.of("/").adapter.on("join-room", (room, id) => {
+      console.log(`socket ${id} has joined room ${room}`);
+    });
 
     this.io.on('connection', (socket: socketIO.Socket) => {
-      console.log('i got a connection !', socket.id);
-      // @ts-ignore
-      socket.handshake.session.socketId = socket.id;
-      // @ts-ignore
-      socket.handshake.session.save();
+      console.log('i got a socket connection !', socket.id);
 
+      /*socket.handshake.session.socketId = socket.id;
+      socket.handshake.session.save();*/
 
-      // socket.emit('connection:sid', socket.id);
+      socket.join(socket.handshake.session.id);
 
-      socket.on('connect_error', (err) => {
-        console.log(`connect_error due to ${err.message}`);
-      });
+      socket.emit('serv:ping', Date.now());
+
       socket.on('error', () => {
-        console.log('error in socket');
+        console.error('error in socket');
       });
       socket.on('disconnect', () => {
-        console.log('disconnected');
-      });
-      socket.onAny((args) => {
-        console.log('i get a event');
-      });
-      socket.emit('serv:ping', Date.now());
-      socket.on('first event', (args) => {
-        console.log('i get the first event');
+        console.log('socket disconnected ', socket.id);
       });
     });
   }
