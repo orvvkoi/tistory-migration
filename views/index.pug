@@ -17,10 +17,10 @@ append head
   script(src='/socket.io/socket.io.js')
   script(src='/js/index.js')
   script(src='/js/socket.js')
-  script(src='/js/util/ajax.util.js')
   script(src='/js/util/localStorage.util.js')
   script(src='/js/util/modal.js')
   script(src='/js/fancytree/tree.js')
+  script(src='/js/util/ajax.util.js')
 
 block content
   .wrapper
@@ -38,7 +38,7 @@ block content
           button#btnGetToken.btn
             | Get Access Token
       .token-list-section
-        h3 Token List
+        h3 Stored Token ID List
         p.text-large.theme-color
           |Registered token information is displayed here.
           if storages

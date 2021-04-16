@@ -53,7 +53,6 @@ export default (app) => {
 
   route.get(
     '/callback',
-    middlewares.looselyAuthenticatedMiddleware,
     celebrate({
       [Segments.QUERY]: Joi.alternatives().try(
         Joi.object({
@@ -75,17 +74,23 @@ export default (app) => {
         let tistoryAuth: ITistoryAuth = req.query as any;
         tistoryAuth.sessionId = req.session.id;
 
-        const token = req[config.authProperty];
-
-        if (token && token.storageId) {
-          tistoryAuth = { ...tistoryAuth, ...{ storageId: token.storageId} };
-        }
-
         const authServiceInstance = Container.get(OAuthService);
         const { newToken } = await authServiceInstance.authorization(tistoryAuth);
 
         if(newToken) {
-          res.cookie(config.jwtSignatureCookieName, newToken);
+          // const [headerEncoded, payloadEncoded, signature] = newToken.split('.');
+
+          /**
+           *  @TODO
+           *  redis token 만료시간을 동기화 해야함.
+           */
+
+          res.cookie(config.jwtCookieName, newToken, {
+            httpOnly: true,
+            secure: true,
+            maxAge: config.jwtCookieMaxAge,
+          });
+
           logger.debug('generated jwt token : %s', newToken);
         }
 

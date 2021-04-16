@@ -4,10 +4,13 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import morgan from 'morgan';
 import { isCelebrateError } from 'celebrate';
+import { v4 as uuidv4 } from 'uuid';
 import config from '../config';
 import logger from './logger';
 import routes from '../api';
+import render from '../render';
 import session from './cookie-session';
+
 
 export default ({ app }: { app: express.Application; }) => {
   app.enable('trust proxy');
@@ -30,11 +33,13 @@ export default ({ app }: { app: express.Application; }) => {
     }),
   );
 
+  app.use(express.static('public'));
+
   // Load API routes
   app.use(config.api.prefix, routes());
 
   // Temp view engine
-  app.use(express.static('public'));
+  app.use('/', render());
   app.set('view engine', 'pug');
 
   // app.use(morgan(config.morgan.mode));
@@ -79,8 +84,8 @@ export default ({ app }: { app: express.Application; }) => {
      */
     if (err.name === 'UnauthorizedError') {
       return res
-        .status(res.status)
-        .json({ status: res.status, message: err.message });
+        .status(401)
+        .json({ status: 401, message: 'No access token provided' });
     }
 
     return next(err);
@@ -90,6 +95,8 @@ export default ({ app }: { app: express.Application; }) => {
     // req.xhr || req.headers.accept.indexOf('json') > -1
     // req.headers["x-requested-with"] === 'XMLHttpRequest'
     const status = err.status || 500;
+
+    next(err);
 
     if(req.headers["x-requested-with"] === 'XMLHttpRequest') {
       res.status(status)

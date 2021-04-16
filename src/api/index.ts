@@ -5,7 +5,7 @@ import migration from './routes/migration';
 export default () => {
   const app = Router();
 
-  // Linking all the routes
+  // Linking all the api routes
   auth(app);
   migration(app);
 

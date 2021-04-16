@@ -14,28 +14,18 @@ $(function() {
     console.log('authStatus response : ', response);
 
     if (response) {
-      const { status } = response;
+      const { status, type = '' } = response;
       if (status > 300) {
         UTIL.modal.alert(response.message, response.title || '');
         return;
       }
 
-      if(status === 204) {
-        const { uuid, clientIdPrefix, clientIdSuffix } = response;
-        const $tokenSection = $(".token-list-section");
-
-        if(!$tokenSection.find('#tokenList').length) {
-          $tokenSection.append(`<ul id="tokenList" class="token-list"></ul>`);
-        }
-
-        const $tokenList = $("#tokenList");
-        $tokenList.append(
-          $(`<li>${clientIdPrefix}<span class="asterisk">${clientIdSuffix}</span><span class="close" data-id="delToken" data-uuid="${uuid}">x</span></li>`).hide().fadeIn('slow')
-        );
-        $.ui.fancytree.getTree("#originTree").reload();
+      if(type === 'new') {
+        viewRender([response]);
       }
     }
   });
+
 
   socket.on('migrationProgress', function(response) {
     let $successCount = $('#successCount');

@@ -42,20 +42,12 @@ export default {
   authProperty: 'auth',
 
   /**
-   *  jwtPayloadCookieName in a cookie without httpOnly and sent in a header with ajax.
-   *  This is to access payload data with javascript.
-   *  ex) expiration date
-   *
-   *  jwtSignatureCookieName is in a cookie with HttpOnly.
-   */
-  jwtPayloadCookieName: 'JPCN',
-  jwtSignatureCookieName: 'JSCN',
-
-  /**
-   * jwt secret
+   * jwt
    */
   jwtSecret: process.env.JWT_SECRET.replace(/\\n/gm, '\n'),
   jwtAlgorithm: process.env.JWT_ALGO.replace(/\\n/gm, '\n'),
+  jwtCookieMaxAge: 604800000, //1000 * 60 * 60 * 24 * 7
+  jwtCookieName: 'JSCN',
 
   /**
    *  cookie-session secret key

@@ -3,8 +3,13 @@ $(function() {
    * fancytree event
    */
 
-  $("#originTree").on("fancytreeinit", function(event, data){
-    $.ui.fancytree.getTree("#targetTree").reload(data.tree.toDict(false));
+  $('#originTree').on('fancytreeinit', function(event, data) {
+    const treeData = data.tree.toDict(false);
+    const targetTree = $.ui.fancytree.getTree('#targetTree');
+
+    if (targetTree) {
+      targetTree.reload(treeData);
+    }
   });
 
   const event = {
@@ -82,10 +87,12 @@ $(function() {
       let node = data.node;
       let children = node.children;
 
-      /**
-       *  다중 트리에서 updateCounters 버그가 있음.
-       *  예외 처리.
-       */
+
+      if (children
+        && children.length === 1
+        && children.find(node => node.statusNodeType === 'nodata')) {
+        return;
+      }
 
       node.updateCounters();
 
@@ -96,24 +103,26 @@ $(function() {
         //    node.load()
       }
 
-      /* data.node.visit(function(subNode){
-           // Load all lazy/unloaded child nodes
-           // (which will trigger `loadChildren` recursively)
-           if( subNode.isUndefined() && subNode.isExpanded() ) {
-               subNode.load();
-           }
-       });*/
+      children.map(function(item) {
+        if (item.statusNodeType === 'paging') {
+          item.title = `<span class='fa fa-plus-circle'>&nbsp;&nbsp;More...</span>`;
+          item.url = `/api/migration/posts`;
+        }
+        return item;
+      });
+
     },
     clickPaging: (event, data) => {
       let node = data.node;
       let nodeData = node.data;
 
       let params = {
-        uniqueKey: nodeData.uniqueKey,
+        uniqueKey: { uuid: nodeData.uuid, blogName: nodeData.blogName, categoryId: nodeData.categoryId },
         page: nodeData.page,
       };
+
       node.replaceWith({
-        url: nodeData.url,
+        url: node.url,
         data: params,
       }).done(function(res) {
 
@@ -467,7 +476,8 @@ $(function() {
 
   let _TREE_OPTION = {
     extensions: ['dnd5', 'multi', 'glyph', 'childcounter'],
-    source: { url: '/api/migration/blogs', cache: true },
+    source: [],
+    //  source: { url: '/api/migration/blogs', cache: false },
     checkbox: true,
     selectMode: 3,
     clickFolderMode: 3,
@@ -496,7 +506,7 @@ $(function() {
     $('#originTree').fancytree(_TREE_OPTION);
 
     // ES9 object destructuring
-    let { childcounter, loadChildren, source, ..._TREE_OPTION2 } = { ..._TREE_OPTION };
+    let { childcounter, loadChildren, ..._TREE_OPTION2 } = { ..._TREE_OPTION };
     _TREE_OPTION2.checkbox = false;
     _TREE_OPTION2.extensions = ['dnd5', 'multi', 'glyph'];
     _TREE_OPTION2.postProcess = function(event, data) {
@@ -535,11 +545,11 @@ $(function() {
   $.ui.fancytree._FancytreeNodeClass.prototype.updateCounters = function() {
     var node = this;
 
-    if(!node.span) {
+    if (!node.span) {
       return;
     }
 
-    var  $badge = $("span.fancytree-childcounter", node.span),
+    var $badge = $('span.fancytree-childcounter', node.span),
       extOpts = node.tree.options.childcounter,
       count = node.countChildren(extOpts.deep);
 
@@ -549,11 +559,11 @@ $(function() {
       (!node.isExpanded() || !extOpts.hideExpanded)
     ) {
       if (!$badge.length) {
-        $badge = $("<span class='fancytree-childcounter'/>").appendTo(
+        $badge = $('<span class=\'fancytree-childcounter\'/>').appendTo(
           $(
-            "span.fancytree-icon,span.fancytree-custom-icon",
-            node.span
-          )
+            'span.fancytree-icon,span.fancytree-custom-icon',
+            node.span,
+          ),
         );
       }
       $badge.text(count);

@@ -194,14 +194,12 @@ export default class MigrationService {
 
           if (totalCount % postsLength > 0) {
             responses.push({
-              title: `<span class='fa fa-plus-circle'>&nbsp;&nbsp;More...</span>`,
               uuid,
               blogName,
               categoryId,
               statusNodeType: 'paging',
               icon: false,
               page: Number(currentPage) + 1,
-              url: `/migration/posts`,
             });
           }
         }
@@ -320,7 +318,7 @@ export default class MigrationService {
     }
   }
 
-  public async deleteToken(migrationDTO: IMigrationDTO): Promise<boolean> {
+  public async deleteToken(migrationDTO: IMigrationDTO): Promise<{ deleteResult: boolean; remainTokens: number; }> {
     try {
 
       const { storageId, uuid } = migrationDTO;
@@ -349,10 +347,12 @@ export default class MigrationService {
       });
       this.logger.debug('matchedFields %s', matchedFields);
 
-      const deletedFieldCount = await this.redis.hdelAsync(storageId, matchedFields);
+      const deletedFieldCount: number = await this.redis.hdelAsync(storageId, matchedFields);
       const deleteResult = deletedFieldCount > 0;
 
-      return deleteResult;
+      const remainTokens = await this.redis.hlenAsync(storageId);
+
+      return { deleteResult, remainTokens };
     } catch (e) {
       this.logger.error(e);
       throw e;
