@@ -1,74 +1,64 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import createError from 'http-errors';
 import { Container, Inject } from 'typedi';
 import { celebrate, Joi, Segments } from 'celebrate';
 import { Logger } from 'winston';
 import middlewares from '../middlewares';
-import OAuthService from '../../services/tistory.auth';
 import MigrationService from '../../services/migration';
 import { IMigrationDTO, IUniqueKey } from '../../interfaces';
-import config from '../../config';
 import logger from '../../loaders/logger';
-import { v4 as uuidv4 } from 'uuid';
+import config from '../../config';
+
 
 const route = Router();
 
 export default (app) => {
   app.use('/migration', route);
 
+  route.use([
+    middlewares.authenticatedMiddleware,
+    middlewares.migrationMiddleware,
+  ])
+
   route.get(
-    '/',
-    [
-      middlewares.looselyAuthenticatedMiddleware,
-      middlewares.migrationMiddleware,
-    ],
+    '/tokens',
     async (req: Request, res: Response, next) => {
       try {
 
-        //console.log('req.clientKeys ', req.clientKeys);
-        logger.debug('req.session : %s ', req.session);
-        logger.debug('session : %s', JSON.stringify(req.session));
-        // @ts-ignore
-        if(!req.session.id) {
-          req.session.id = uuidv4().replace(/-/g, '');
-        }
-
-
-        if (!req.storageId) {
-          return res.render('index', { step: 1 });
-        }
-
         const migrationDto: IMigrationDTO = req as IMigrationDTO;
 
+        if(!migrationDto.clientKeys) {
+          return res.end();
+        }
         const storages = migrationDto.clientKeys.filter((storage: any) => storage.accessToken);
 
-        if (storages.length) {
-          res.render('index', {
-            storages,
-          });
-        } else {
-          res.render('index', { step: 1 });
-        }
+        const tokens = storages.reduce(function(newArray, storage) {
+          const data = {
+            clientId: storage.clientId.slice(0, 15) + storage.clientId.slice(16).replace(/(?<=.{0})./gi, "*"),
+            uuid: storage.uuid
+          }
+
+          newArray.push(data);
+
+          return newArray;
+        }, []);
+
+        res.json(tokens);
+
       } catch (e) {
         return next(e);
       }
     },
   );
 
-  route.get('/blogs', [
-      middlewares.authenticatedMiddleware,
-      middlewares.migrationMiddleware,
-    ],
+  route.get('/blogs',
     async (req: Request, res: Response, next: NextFunction) => {
       const logger: Logger = Container.get('logger');
 
       try {
 
         const migrationDto: IMigrationDTO = { ...req.query, clientKeys: req.clientKeys } as IMigrationDTO;
-
         const migrationServiceInstance = Container.get(MigrationService);
         const blogs = await migrationServiceInstance.getBlogList(migrationDto);
-
         res.json(blogs);
       } catch (e) {
         logger.error('🔥 error: %o', e);
@@ -78,10 +68,6 @@ export default (app) => {
 
   route.get(
     '/categories',
-    [
-      middlewares.authenticatedMiddleware,
-      middlewares.migrationMiddleware,
-    ],
     celebrate({
       [Segments.QUERY]: Joi.object({
         uniqueKey: Joi.object().keys({
@@ -109,10 +95,6 @@ export default (app) => {
 
   route.get(
     '/posts',
-    [
-      middlewares.authenticatedMiddleware,
-      middlewares.migrationMiddleware,
-    ],
     celebrate({
       [Segments.QUERY]: Joi.object({
         uniqueKey: Joi.object().keys({
@@ -141,10 +123,6 @@ export default (app) => {
 
   route.post(
     '/progress',
-    [
-      middlewares.authenticatedMiddleware,
-      middlewares.migrationMiddleware,
-    ],
     celebrate({
       [Segments.BODY]: Joi.object({
 
@@ -180,10 +158,7 @@ export default (app) => {
     },
   );
 
-  route.delete('/tokens/:uuid', [
-      middlewares.authenticatedMiddleware,
-      middlewares.migrationMiddleware,
-    ],
+  route.delete('/tokens/:uuid',
     celebrate({
       [Segments.PARAMS]: Joi.object({
         uuid: Joi.string().alphanum(),
@@ -194,12 +169,16 @@ export default (app) => {
 
       try {
 
-        const migrationDTO: IMigrationDTO = { ...req.params, storageId: req.storageId} as IMigrationDTO;
+        const migrationDTO: IMigrationDTO = { ...req.params, storageId: req.storageId } as IMigrationDTO;
 
         const migrationServiceInstance = Container.get(MigrationService);
-        const deleteResult: boolean = await migrationServiceInstance.deleteToken(migrationDTO);
+        const { deleteResult, remainTokens }: {deleteResult: boolean; remainTokens: number;} = await migrationServiceInstance.deleteToken(migrationDTO);
 
-        res.json({ result: deleteResult });
+        if(!remainTokens) {
+          res.clearCookie(config.jwtCookieName);
+        }
+
+        res.json({ result: deleteResult, remainTokens: remainTokens });
       } catch (e) {
         logger.error('🔥 error: %o', e);
         return next(e);

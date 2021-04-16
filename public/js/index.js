@@ -13,37 +13,48 @@ const openDialog = function(uri, name, options, closeCallback) {
   return win;
 };
 
+const viewRender = function(tokens) {
+  if (!tokens) {
+    return;
+  }
+
+  for (const token of tokens) {
+    const { uuid, clientId } = token;
+    const $tokenSection = $('.token-list-section');
+
+    if (!$tokenSection.find('#tokenList').length) {
+      $tokenSection.append(`<ul id='tokenList' class='token-list'></ul>`);
+    }
+
+    const $tokenList = $('#tokenList');
+    $tokenList.append(
+      $(`<li>${clientId.substring(0, clientId.indexOf('*'))}<span class='asterisk'>${clientId.substring(clientId.indexOf('*'))}</span><span class='close' data-id='delToken' data-uuid='${uuid}'>x</span></li>`).hide().fadeIn('slow'),
+    );
+  }
+
+  treeSourceHandler(tokens);
+};
+
+const treeSourceHandler = function(tokens) {
+  const $originTree = $.ui.fancytree.getTree("#originTree");
+
+  if(tokens) {
+    $originTree.options.source = { url: '/api/migration/blogs', cache: false };
+  } else {
+    $originTree.options.source = [];
+  }
+
+  $originTree.reload();
+}
 
 $(function() {
+  const req = UTIL.ajax.get('/api/migration/tokens');
+  req.done((tokens) => {
+    viewRender(tokens);
+  });
+
   const jForm = $('#form');
   const jBtnGetToken = $('#btnGetToken');
-
-  jForm.validate({
-    normalizer: function(value) {
-      return $.trim(value);
-    },
-    rules: {
-      clientId: {
-        required: true,
-      },
-      clientSecret: {
-        required: true,
-      },
-    },
-    errorPlacement: function(error, element) {
-      // $(element).after(error);
-      return;
-    },
-    // unhighlight ?
-    onfocusout: function (element) {
-      $(element).removeClass('error-class');
-    },
-    highlight: function(element) {
-      $(element).addClass('error-class');
-      formLoadingToggle(false);
-    },
-
-  });
 
   const formLoadingToggle = (isLoading) => {
     const btnText = jBtnGetToken.text();
@@ -62,6 +73,33 @@ $(function() {
       jForm.find('input').prop('disabled', false);
     }
   };
+
+  jForm.validate({
+    normalizer: function(value) {
+      return $.trim(value);
+    },
+    rules: {
+      clientId: {
+        required: true,
+      },
+      clientSecret: {
+        required: true,
+      },
+    },
+    errorPlacement: function(error, element) {
+      // $(element).after(error);
+      return;
+    },
+    // unhighlight ?
+    onfocusout: function(element) {
+      $(element).removeClass('error-class');
+    },
+    highlight: function(element) {
+      $(element).addClass('error-class');
+      formLoadingToggle(false);
+    },
+
+  });
 
   jBtnGetToken.on('click', function(e) {
     e.preventDefault();
@@ -88,20 +126,24 @@ $(function() {
 
     const uuid = _this.data('uuid');
 
-    _this.addClass('disabled btn-wait').html(`<i class="fa fa-spinner fa-spin"></i>`);
+    _this.addClass('disabled btn-wait').html(`<i class='fa fa-spinner fa-spin'></i>`);
 
-    const req = UTIL.ajax.delete(`/api/migration/tokens/${ uuid }`);
+    const req = UTIL.ajax.delete(`/api/migration/tokens/${uuid}`);
 
     req.done(res => {
-      if(res.result) {
+      if (res.result) {
         _this.closest('li').hide('slow', function() {
           _this.remove();
         });
 
-       /* $.ui.fancytree.getTree("#originTree").getRootNode().children.find(o=> o.data.uuid === uuid).remove();
-        $.ui.fancytree.getTree("#targetTree").getRootNode().children.find(o=> o.data.uuid === uuid).remove();*/
+        /* $.ui.fancytree.getTree("#originTree").getRootNode().children.find(o=> o.data.uuid === uuid).remove();
+         $.ui.fancytree.getTree("#targetTree").getRootNode().children.find(o=> o.data.uuid === uuid).remove();*/
 
-        $.ui.fancytree.getTree("#originTree").reload();
+       /* if(res.remainTokens === 0) {
+          $.ui.fancytree.getTree("#originTree").options.source = [];
+        }*/
+
+        treeSourceHandler(res.remainTokens);
         return;
       }
 

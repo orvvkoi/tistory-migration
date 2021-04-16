@@ -22,7 +22,7 @@ export default class OAuthService {
     this.logger.silly(`Generating JWT`);
 
     return jwt.sign(obj, config.jwtSecret, {
-      expiresIn: '30d', // expires in 30 days
+      expiresIn: config.jwtCookieMaxAge,
       algorithm: config.jwtAlgorithm,
     });
   }
@@ -46,8 +46,10 @@ export default class OAuthService {
      *  hgetall 대신 확인 할 수 있는가?
      */
     const keyStorage: object = await this.redis.hgetallAsync(storageId);
+    console.log('keyStorage ', keyStorage);
     // Return object after clientId duplicate check
     const duplicateKeyObj = keyStorage ? Object.keys(keyStorage).find(key => keyStorage[key] === clientId) : '';
+    console.log('duplicateKeyObj ', duplicateKeyObj);
 
     uuid = hasKey
       ? duplicateKeyObj
@@ -62,7 +64,7 @@ export default class OAuthService {
 
     await this.redis.hmsetAsync(storageId, newData);
 
-    auth.state = uuid;
+    auth.uuid = uuid;
     auth.storageId = storageId;
 
     return auth;
@@ -72,9 +74,9 @@ export default class OAuthService {
     try {
       const auth = await this.setStorage(tistoryAuth);
 
-      const { uuid, clientId, state } = auth;
+      const { storageId, clientId, uuid } = auth;
 
-      const encryptState = crypto.encrypt({ state });
+      const encryptState = crypto.encrypt({ storageId, uuid });
       this.logger.debug('authentication encrypt encryptState %s', encryptState);
 
       const queryParams = querystring.stringify({
@@ -96,7 +98,6 @@ export default class OAuthService {
 
   public async authorization(tistoryAuth: ITistoryAuth): Promise<{ newToken: string }> {
     try {
-      let { storageId } = tistoryAuth;
       const { code, state, sessionId } = tistoryAuth;
       const { error: callbackErr, error_reason: callbackErrReason, error_description: callbackErrDesc  }: ITistoryAuthError = tistoryAuth;
 
@@ -111,7 +112,7 @@ export default class OAuthService {
         throw createError.BadRequest(callbackErrReason || callbackErrDesc);
       }
 
-      const { state: requestUuid } = crypto.decrypt(state.replace(/ /g, '+'));
+      let { uuid: requestUuid, storageId } = crypto.decrypt(state.replace(/ /g, '+'));
 
       if(!requestUuid) {
         throw createError.BadRequest('Authorization code invalid');
@@ -120,10 +121,12 @@ export default class OAuthService {
       const hasKey = !!(storageId && (await this.redis.existsAsync(storageId)));
       storageId = hasKey ? storageId : requestUuid;
 
-      const clientKeys = await this.redis.hgetallAsync(storageId);
+      const keyStorage = await this.redis.hgetallAsync(storageId);
 
-      const clientId = clientKeys[`clientId:${requestUuid}`]
-      const clientSecret = clientKeys[`clientSecret:${requestUuid}`]
+      const clientId = keyStorage[`clientId:${requestUuid}`];
+      const clientSecret = keyStorage[`clientSecret:${requestUuid}`];
+      const hasAccessToken = !!(keyStorage[`accessToken:${requestUuid}`]);
+      const accessTokenSize = Object.keys(keyStorage).filter((key: any) => key.startsWith('accessToken')).length;
 
       const queryParams = querystring.stringify({
         client_id: clientId,
@@ -144,7 +147,7 @@ export default class OAuthService {
           status: 400,
           title: tokenError,
           message: tokenErrorDesc,
-          clientId: requestUuid
+          uuid: requestUuid
         });
 
         throw createError.BadRequest(tokenErrorDesc);
@@ -153,13 +156,13 @@ export default class OAuthService {
       await this.redis.hmsetAsync(storageId, `accessToken:${requestUuid}`, accessToken);
 
       this.socket.sockets.to(sessionId).emit('authStatus', {
-        status: 204,
+        status: 200,
+        type: hasAccessToken ? 'renew' : 'new',
         uuid: requestUuid,
-        clientIdPrefix: clientId.slice(0, 15),
-        clientIdSuffix: clientId.slice(16).replace(/(?<=.{0})./gi, "*")
+        clientId: clientId.slice(0, 15) + clientId.slice(16).replace(/(?<=.{0})./gi, "*"),
       });
 
-      const newToken = this.generateToken({
+      const newToken = accessTokenSize ? '' : this.generateToken({
         storageId: storageId,
       });
 

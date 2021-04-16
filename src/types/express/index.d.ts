@@ -1,4 +1,4 @@
-import socketIO from 'socket.io';
+import cookieSession from 'cookie-session';
 
 export {};
 
@@ -8,13 +8,8 @@ declare global {
       token: string;
       clientKeys: string;
       storageId: string;
-      socketId: string;
+      session: cookieSession.Session<{ userId: string, redirectUri: string }>;
+      sessionOptions: cookieSession.Options;
     }
-  }
-}
-
-declare module 'express-session' {
-  interface Session {
-    socketId: string;
   }
 }
