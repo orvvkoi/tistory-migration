@@ -6,5 +6,9 @@ declare module "socket.io/dist/socket" {
     session?: Session & Partial<SessionData>;
     sessionID?: string;
   }
+
+  interface Socket {
+    sockets: any;
+  }
 }
 
