@@ -258,7 +258,7 @@ export default class MigrationService {
         };
 
         const result = await this.tistoryService.setPost(postPrams);
-        this.logger.error('migration setPost result : %o' , result);
+        this.logger.error('migration setPost result : %o', result);
 
         const statusCode = result && result.status ? result.status : 400;
 
@@ -318,13 +318,13 @@ export default class MigrationService {
     }
   }
 
-  public async deleteToken(migrationDTO: IMigrationDTO): Promise<{ deleteResult: boolean; remainTokens: number; }> {
+  public async deleteToken(migrationDTO: IMigrationDTO): Promise<{ deleteResult: boolean; remainTokenSize: number; }> {
     try {
 
       const { storageId, uuid } = migrationDTO;
       const hasKey = await this.redis.existsAsync(storageId);
 
-      if(!hasKey) {
+      if (!hasKey) {
         throw createError.BadRequest();
       }
 
@@ -335,13 +335,21 @@ export default class MigrationService {
        *  hsacn으로 대체
        *  cursor가 0 이상인 경우 데이터 적재 문제.
        */
-      const [ cursor, matchedResults ] = await this.redis.send_commandAsync('HSCAN', [storageId, 0, 'MATCH', '*:' + uuid, 'COUNT', 6]);
+      const [matchedCursor, matchedResults] = await this.redis.send_commandAsync('HSCAN', [storageId, 0, 'MATCH', '*:' + uuid, 'COUNT', 6]);
 
-      if(cursor > 0) {
-        this.logger.error('deleteToken storageId, uuid, cursor %s %s %d ', storageId, uuid, cursor);
+      if (matchedCursor > 0) {
+        this.logger.error('deleteToken storageId, uuid, cursor %s %s %d ', storageId, uuid, matchedCursor);
       }
 
-      const matchedFields = matchedResults.filter(function(d){
+      if (!matchedResults || !matchedResults.length) {
+        throw createError.BadRequest(`Data that doesn't exist.`);
+      }
+
+      /**
+       * matchedResults가 [key, value, key, value] 형태임으로
+       * filed만 추려냄
+       */
+      const matchedFields = matchedResults.filter(function(d) {
         return /clientId:|clientSecret:|accessToken:/.test(d);
       });
       this.logger.debug('matchedFields %s', matchedFields);
@@ -349,9 +357,18 @@ export default class MigrationService {
       const deletedFieldCount: number = await this.redis.hdelAsync(storageId, matchedFields);
       const deleteResult = deletedFieldCount > 0;
 
-      const remainTokens = await this.redis.hlenAsync(storageId);
+      const [tokenCursor, remainTokens] = await this.redis.send_commandAsync('HSCAN', [storageId, 0, 'MATCH', 'accessToken:*', 'COUNT', 2]);
+      const remainTokenSize = remainTokens.length;
 
-      return { deleteResult, remainTokens };
+      /**
+       * accessToken: 이 없는 storage 라면
+       * storage 를 파기함.
+       */
+      if (!remainTokenSize) {
+        this.redis.delAsync(storageId);
+      }
+
+      return { deleteResult, remainTokenSize };
     } catch (e) {
       this.logger.error(e);
       throw e;
