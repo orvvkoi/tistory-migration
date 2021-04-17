@@ -39,7 +39,7 @@ export default class SocketServer {
        * @TODO
        * 세션 id 기준으로 room을 관리하기 때문에
        * 복수개의 브라우저에서 동일한 액션이 발생함.
-       * 일단 보류.
+       * 보류.
        */
       socket.join(socket.handshake.session.id);
 

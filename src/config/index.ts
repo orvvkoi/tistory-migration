@@ -26,7 +26,8 @@ export default {
     ip: process.env.REDIS_IP,
     port: parseInt(process.env.REDIS_PORT, 10),
     pass: process.env.REDIS_PASS,
-    tokenDb: process.env.REDIS_TOKEN_DB
+    tokenDb: process.env.REDIS_TOKEN_DB,
+    tokenTempDb: process.env.REDIS_TOKEN_TEMP_DB
   },
 
   /**
