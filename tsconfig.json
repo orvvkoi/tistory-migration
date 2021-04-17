@@ -3,12 +3,15 @@
     "target": "es2018",
     "lib": [
       "es2018",
-      "esnext.asynciterable"
+      "esnext.asynciterable",
+      "dom"
     ],
     "typeRoots": [
       "./src/types",
       "./node_modules/@types"
     ],
+    "declaration": false,
+    "emitDeclarationOnly": false,
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
@@ -20,7 +23,6 @@
     "sourceMap": true,
     "outDir": "./build",
     "allowJs": true,
-    "noEmit": true,
     "esModuleInterop": true
   },
   "include": [
@@ -28,6 +30,7 @@
   ],
   "exclude": [
     "node_modules",
-    "tests"
+    "test",
+    "build",
   ]
 }

@@ -22,7 +22,7 @@ export default class OAuthService {
     this.logger.silly(`Generating JWT`);
 
     return jwt.sign(obj, config.jwtSecret, {
-      expiresIn: config.jwtCookieMaxAge,
+      expiresIn: config.jwtCookieMaxAge / 1000,
       algorithm: config.jwtAlgorithm,
     });
   }
@@ -63,6 +63,15 @@ export default class OAuthService {
     };
 
     await this.redis.hmsetAsync(storageId, newData);
+
+    /**
+     * storageId가 없는 경우,
+     * accessToken을 얻기까지 5분 만료시간을 갖는다.
+     * 5분 초과시 비인가.
+     */
+    if(!hasKey) {
+      await this.redis.expireAsync(storageId, 300);
+    }
 
     auth.uuid = uuid;
     auth.storageId = storageId;
@@ -119,14 +128,19 @@ export default class OAuthService {
       }
 
       const hasKey = !!(storageId && (await this.redis.existsAsync(storageId)));
-      storageId = hasKey ? storageId : requestUuid;
+
+      if(!hasKey) {
+        throw createError.Unauthorized('Authentication timeout.');
+      }
+
+      // storageId = hasKey ? storageId : requestUuid;
 
       const keyStorage = await this.redis.hgetallAsync(storageId);
 
       const clientId = keyStorage[`clientId:${requestUuid}`];
       const clientSecret = keyStorage[`clientSecret:${requestUuid}`];
       const hasAccessToken = !!(keyStorage[`accessToken:${requestUuid}`]);
-      const accessTokenSize = Object.keys(keyStorage).filter((key: any) => key.startsWith('accessToken')).length;
+      //const accessTokenSize = Object.keys(keyStorage).filter((key: any) => key.startsWith('accessToken')).length;
 
       const queryParams = querystring.stringify({
         client_id: clientId,
@@ -155,6 +169,15 @@ export default class OAuthService {
 
       await this.redis.hmsetAsync(storageId, `accessToken:${requestUuid}`, accessToken);
 
+      /**
+       * @TODO
+       * jwt token cookie의 만료 시간과 동기화.
+       * accessToken field가 없는 데이터 그룹은 자동 삭제해야함.
+       * field에 만료시간 지정은 안되는걸로 보임.
+       * job 고려.
+       */
+      await this.redis.expireAsync(storageId, config.jwtCookieMaxAge/1000);
+
       this.socket.sockets.to(sessionId).emit('authStatus', {
         status: 200,
         type: hasAccessToken ? 'renew' : 'new',
@@ -162,7 +185,7 @@ export default class OAuthService {
         clientId: clientId.slice(0, 15) + clientId.slice(16).replace(/(?<=.{0})./gi, "*"),
       });
 
-      const newToken = accessTokenSize ? '' : this.generateToken({
+      const newToken = this.generateToken({
         storageId: storageId,
       });
 
