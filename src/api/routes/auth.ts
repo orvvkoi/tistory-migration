@@ -83,7 +83,7 @@ export default (app) => {
           /**
            * @TODO
            * redis key 만료시간과 동기화 해야함.
-           * redis field에 만료시간 지정은 안되는걸로 보임.
+           * redis field에 만료시간 지정은 불가.
            */
           res.cookie(config.jwtCookieName, newToken, {
             httpOnly: true,

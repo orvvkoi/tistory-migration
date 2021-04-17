@@ -14,6 +14,8 @@ export default class OAuthService {
     private logger,
     @Inject('redis')
     private redis,
+    @Inject('redisTempDb')
+    private redisTempDb,
     @Inject('socket')
     private socket
   ) {}
@@ -46,10 +48,8 @@ export default class OAuthService {
      *  hgetall 대신 확인 할 수 있는가?
      */
     const keyStorage: object = await this.redis.hgetallAsync(storageId);
-    console.log('keyStorage ', keyStorage);
     // Return object after clientId duplicate check
     const duplicateKeyObj = keyStorage ? Object.keys(keyStorage).find(key => keyStorage[key] === clientId) : '';
-    console.log('duplicateKeyObj ', duplicateKeyObj);
 
     uuid = hasKey
       ? duplicateKeyObj
@@ -62,16 +62,14 @@ export default class OAuthService {
       [`clientSecret:${uuid}`]: clientSecret,
     };
 
-    await this.redis.hmsetAsync(storageId, newData);
+    await this.redisTempDb.hmsetAsync(storageId, newData);
 
     /**
      * storageId가 없는 경우,
      * accessToken을 얻기까지 5분 만료시간을 갖는다.
-     * 5분 초과시 비인가.
+     * 5분 초과시 삭제.
      */
-    if(!hasKey) {
-      await this.redis.expireAsync(storageId, 300);
-    }
+    await this.redisTempDb.expireAsync(storageId, 300);
 
     auth.uuid = uuid;
     auth.storageId = storageId;
@@ -118,6 +116,10 @@ export default class OAuthService {
           message: callbackErrReason || callbackErrDesc,
         });
 
+        /**
+         * @TODO
+         * 실패한경우 db에서 삭제해야함.
+         */
         throw createError.BadRequest(callbackErrReason || callbackErrDesc);
       }
 
@@ -127,7 +129,7 @@ export default class OAuthService {
         throw createError.BadRequest('Authorization code invalid');
       }
 
-      const hasKey = !!(storageId && (await this.redis.existsAsync(storageId)));
+      const hasKey = !!(storageId && (await this.redisTempDb.existsAsync(storageId)));
 
       if(!hasKey) {
         throw createError.Unauthorized('Authentication timeout.');
@@ -135,11 +137,12 @@ export default class OAuthService {
 
       storageId = hasKey ? storageId : requestUuid;
 
-      const keyStorage = await this.redis.hgetallAsync(storageId);
+      const keyStorage = await this.redisTempDb.hgetallAsync(storageId);
+      const originKeyStorage = await this.redis.hgetallAsync(storageId);
 
       const clientId = keyStorage[`clientId:${requestUuid}`];
       const clientSecret = keyStorage[`clientSecret:${requestUuid}`];
-      const hasAccessToken = !!(keyStorage[`accessToken:${requestUuid}`]);
+      const hasAccessToken = !!(originKeyStorage && originKeyStorage[`accessToken:${requestUuid}`]);
       //const accessTokenSize = Object.keys(keyStorage).filter((key: any) => key.startsWith('accessToken')).length;
 
       const queryParams = querystring.stringify({
@@ -164,16 +167,25 @@ export default class OAuthService {
           uuid: requestUuid
         });
 
+        /**
+         * @TODO
+         * 실패한경우 db에서 삭제해야함.
+         */
         throw createError.BadRequest(tokenErrorDesc);
       }
 
-      await this.redis.hmsetAsync(storageId, `accessToken:${requestUuid}`, accessToken);
+      const newData = {
+        [`clientId:${requestUuid}`]: clientId,
+        [`accessToken:${requestUuid}`]: accessToken
+      }
+
+      await this.redis.hmsetAsync(storageId, newData);
 
       /**
        * @TODO
        * jwt token cookie의 만료 시간과 동기화.
        * accessToken field가 없는 데이터 그룹은 자동 삭제해야함.
-       * field에 만료시간 지정은 안되는걸로 보임.
+       * field에 만료시간 지정 불가.
        * job 고려.
        */
       await this.redis.expireAsync(storageId, config.jwtCookieMaxAge/1000);

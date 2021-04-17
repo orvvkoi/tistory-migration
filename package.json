@@ -23,6 +23,7 @@
     "debug": "~2.6.9",
     "dotenv": "^8.2.0",
     "eslint-config-airbnb-base": "^14.2.1",
+    "eventemitter2": "^6.4.4",
     "eventemitter3": "^4.0.7",
     "express": "^4.16.4",
     "express-jwt": "^6.0.0",
