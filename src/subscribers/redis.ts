@@ -6,6 +6,10 @@ import logger from '../loaders/logger'
 import config from '../config'
 
 
+/**
+ * @TODO
+ * EventEmitter 활용.
+ */
 export class RedisEventEmitter extends EventEmitter {
   constructor() {
     super();

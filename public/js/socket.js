@@ -25,7 +25,7 @@ $(function() {
   });
 
   socket.on('expireNotification', function(response) {
-    UTIL.modal.alert(`It is two days before the expiration date.<br>Renewable with client ID authentication.` , `Client ID renewal required.`);
+    UTIL.modal.alert(response.message, response.title);
   });
 
   socket.on('migrationProgress', function(response) {

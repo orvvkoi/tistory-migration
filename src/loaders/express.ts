@@ -72,32 +72,29 @@ export default ({ app }: { app: express.Application; }) => {
   app.use((err, req, res, next) => {
     // If this isn't a Celebrate error, send it to the next error handler
     if (isCelebrateError(err)) {
-      const result = {};
+      const result = [];
 
       for (const [key, { details }] of err.details) {
-        result[key] = details.reduce((acc, { path, message, context }) => {
-          console.log(message, context.message);
+        const message = details.reduce((acc, { path, message, context }) => {
           const customMsg = context.message || message;
-          acc[path.join('.')] = {
-            customMsg,
-          };
+          acc.push(customMsg)
           return acc;
-        }, {});
+        }, []).join(',');
+
+        result.push(message);
       }
 
-      console.log('isCelebrateError error ', result);
-
-      return res
-        .status(400)
-        .json({code: 400, message: result});
+      err['status'] = 400;
+      err['message'] = result ? result.join(',') : err['message'];
     }
+
+
     /**
      * Handle 401 thrown by express-jwt library
      */
     if (err.name === 'UnauthorizedError') {
-      return res
-        .status(401)
-        .json({ status: 401, message: 'No access token provided' });
+      err['status'] = 401;
+      err['message'] = 'No access token provided';
     }
 
     return next(err);
@@ -107,8 +104,6 @@ export default ({ app }: { app: express.Application; }) => {
     // req.xhr || req.headers.accept.indexOf('json') > -1
     // req.headers["x-requested-with"] === 'XMLHttpRequest'
     const status = err.status || 500;
-
-    next(err);
 
     if(req.headers["x-requested-with"] === 'XMLHttpRequest') {
       res.status(status)

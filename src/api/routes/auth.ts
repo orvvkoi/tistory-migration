@@ -18,8 +18,8 @@ export default (app) => {
     middlewares.looselyAuthenticatedMiddleware,
     celebrate({
       [Segments.QUERY]: Joi.object({
-        clientId: Joi.string().alphanum(),
-        clientSecret: Joi.string().alphanum(),
+        clientId: Joi.string().alphanum().trim().min(30).max(50),
+        clientSecret: Joi.string().alphanum().trim().min(70).max(100),
         //callbackUrl: Joi.alternatives().try(Joi.string().uri(), Joi.string().ip()).optional(),
       }).required(),
     }),
@@ -56,7 +56,7 @@ export default (app) => {
     celebrate({
       [Segments.QUERY]: Joi.alternatives().try(
         Joi.object({
-          code: Joi.string().token(),
+          code: Joi.string().token().trim(),
           state: Joi.any(),
         }).required(),
         Joi.object({
