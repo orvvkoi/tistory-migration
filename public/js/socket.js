@@ -6,13 +6,11 @@ $(function() {
     ]
   });
 
-  socket.on('serv:ping', function(data) {
-    console.log('serv:ping : ', data);
+  socket.on('serv:ping', function(response) {
+    console.log('serv:ping : ', response);
   });
 
   socket.on('authStatus', function(response) {
-    console.log('authStatus response : ', response);
-
     if (response) {
       const { status, type = '' } = response;
       if (status > 300) {
@@ -26,6 +24,9 @@ $(function() {
     }
   });
 
+  socket.on('expireNotification', function(response) {
+    UTIL.modal.alert(`It is two days before the expiration date.<br>Renewable with client ID authentication.` , `Client ID renewal required.`);
+  });
 
   socket.on('migrationProgress', function(response) {
     let $successCount = $('#successCount');

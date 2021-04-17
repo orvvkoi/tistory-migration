@@ -1,19 +1,21 @@
 import 'reflect-metadata';
+import express from 'express';
 import SharedSession from 'express-socket.io-session';
-import App from './loaders/app';
 import config from './config';
 import logger from './loaders/logger';
 import socketio from './loaders/socket.io';
 import dependencyInjector from './loaders/dependencyInjector';
 import session from './loaders/cookie-session';
+import loaders from './loaders';
 
 /**
  * Add external services init as async operations
  */
 
 async function startServer() {
+  const app = express();
 
-  const app = new App();
+  await loaders({ expressApp: app });
 
   const server = app.listen(config.port, () => {
     logger.info(`
