@@ -322,7 +322,6 @@ export default class MigrationService {
     try {
 
       const { storageId, uuid } = migrationDTO;
-
       const hasKey = await this.redis.existsAsync(storageId);
 
       if(!hasKey) {

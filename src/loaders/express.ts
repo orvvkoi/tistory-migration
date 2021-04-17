@@ -1,6 +1,7 @@
 import express from 'express';
 import methodOverride from 'method-override';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
 import { isCelebrateError } from 'celebrate';
@@ -14,6 +15,17 @@ import session from './cookie-session';
 
 export default ({ app }: { app: express.Application; }) => {
   app.enable('trust proxy');
+
+  app.use(helmet());
+  app.use(
+    helmet.contentSecurityPolicy({
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "script-src": ["'self'", "'unsafe-inline'", "code.jquery.com", "cdnjs.cloudflare.com", "googleapis.com"],
+      },
+    })
+  );
+
 
   /**
    *  Lets you use HTTP verbs such as PUT or DELETE in places where the client doesn't support it.

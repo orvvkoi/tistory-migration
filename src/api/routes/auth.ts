@@ -81,14 +81,15 @@ export default (app) => {
           // const [headerEncoded, payloadEncoded, signature] = newToken.split('.');
 
           /**
-           *  @TODO
-           *  redis token 만료시간을 동기화 해야함.
+           * @TODO
+           * redis key 만료시간과 동기화 해야함.
+           * redis field에 만료시간 지정은 안되는걸로 보임.
            */
-
           res.cookie(config.jwtCookieName, newToken, {
             httpOnly: true,
             secure: true,
             maxAge: config.jwtCookieMaxAge,
+            sameSite: 'strict',
           });
 
           logger.debug('generated jwt token : %s', newToken);
