@@ -136,14 +136,7 @@ $(function() {
           _this.remove();
         });
 
-        /* $.ui.fancytree.getTree("#originTree").getRootNode().children.find(o=> o.data.uuid === uuid).remove();
-         $.ui.fancytree.getTree("#targetTree").getRootNode().children.find(o=> o.data.uuid === uuid).remove();*/
-
-       /* if(res.remainTokens === 0) {
-          $.ui.fancytree.getTree("#originTree").options.source = [];
-        }*/
-
-        treeSourceHandler(res.remainTokens);
+        treeSourceHandler(res.remainTokenSize);
         return;
       }
 

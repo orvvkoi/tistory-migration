@@ -133,7 +133,7 @@ export default class OAuthService {
         throw createError.Unauthorized('Authentication timeout.');
       }
 
-      // storageId = hasKey ? storageId : requestUuid;
+      storageId = hasKey ? storageId : requestUuid;
 
       const keyStorage = await this.redis.hgetallAsync(storageId);
 

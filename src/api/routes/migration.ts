@@ -172,13 +172,13 @@ export default (app) => {
         const migrationDTO: IMigrationDTO = { ...req.params, storageId: req.storageId } as IMigrationDTO;
 
         const migrationServiceInstance = Container.get(MigrationService);
-        const { deleteResult, remainTokens }: {deleteResult: boolean; remainTokens: number;} = await migrationServiceInstance.deleteToken(migrationDTO);
+        const { deleteResult, remainTokenSize }: {deleteResult: boolean; remainTokenSize: number;} = await migrationServiceInstance.deleteToken(migrationDTO);
 
-        if(!remainTokens) {
+        if(!remainTokenSize) {
           res.clearCookie(config.jwtCookieName);
         }
 
-        res.json({ result: deleteResult, remainTokens: remainTokens });
+        res.json({ result: deleteResult, remainTokenSize: remainTokenSize });
       } catch (e) {
         logger.error('🔥 error: %o', e);
         return next(e);
