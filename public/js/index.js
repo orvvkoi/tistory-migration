@@ -36,16 +36,16 @@ const viewRender = function(tokens) {
 };
 
 const treeSourceHandler = function(tokens) {
-  const $originTree = $.ui.fancytree.getTree("#originTree");
+  const $originTree = $.ui.fancytree.getTree('#originTree');
 
-  if(tokens) {
+  if (tokens) {
     $originTree.options.source = { url: '/api/migration/blogs', cache: false };
   } else {
     $originTree.options.source = [];
   }
 
   $originTree.reload();
-}
+};
 
 $(function() {
   const req = UTIL.ajax.get('/api/migration/tokens');
@@ -74,6 +74,10 @@ $(function() {
     }
   };
 
+  $.validator.addMethod('alphanumeric', function(value, element) {
+    return this.optional(element) || /^[a-zA-Z0-9]+$/.test(value);
+  });
+
   jForm.validate({
     normalizer: function(value) {
       return $.trim(value);
@@ -81,9 +85,15 @@ $(function() {
     rules: {
       clientId: {
         required: true,
+        minlength: 30,
+        maxlength: 50,
+        alphanumeric: true,
       },
       clientSecret: {
         required: true,
+        minlength: 70,
+        maxlength: 100,
+        alphanumeric: true,
       },
     },
     errorPlacement: function(error, element) {

@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
+import createError from 'http-errors';
 import { Container } from 'typedi';
 import config from '../config';
 import socketIO from 'socket.io';
@@ -26,14 +27,7 @@ export default () => {
           jwt.verify(token, config.jwtSecret, function(err, decoded) {
             console.log('decoded ', decoded);
             if (err) {
-              console.log('err ', err);
-              /*
-                err = {
-                  name: 'TokenExpiredError',
-                  message: 'jwt expired',
-                  expiredAt: 1408621000
-                }
-              */
+              throw createError(419, 'Authentication Timeout.')
             }
 
             const now = new Date();
@@ -43,13 +37,12 @@ export default () => {
               const socket: socketIO.Socket = Container.get('socket');
 
               socket.sockets.to(req.session.id).emit('expireNotification', {
-
+                title :  `Client ID renewal required.`,
+                message: `Only two days before the expiration date. Renewable with client ID authentication.` ,
               });
             }
           });
         }
-
-
 
         res.render('index');
 
