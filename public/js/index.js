@@ -30,10 +30,16 @@ const treeSourceHandler  = () => {
 const viewRender = () => {
   const { tokens } = tokenStore.getState();
 
-  if(tokens) {
+  if(tokens && tokens.length) {
+    /**
+     * @TODO
+     * token 정보가 갱신될 때마다 전체를 렌더링 한다.
+     * getState 에서는 갱신된 이후의 전체를 가져오기 때문에, 특정 정보만 렌더링 할 수 있는지 확인 필요함.
+     */
     $('#tokenList').html(
       tokens.map(token => {
         const { uuid, clientId } = token;
+
         return `<li data-id='${uuid}'>
                     ${clientId.substring(0, clientId.indexOf('*'))}
                     <span class='asterisk'>${clientId.substring(clientId.indexOf('*'))}</span>
