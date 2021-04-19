@@ -258,9 +258,9 @@ export default class MigrationService {
         };
 
         const result = await this.tistoryService.setPost(postPrams);
-        this.logger.error('migration setPost result : %o', result);
+        this.logger.info('migration setPost result : %o', result);
 
-        const statusCode = result && result.status ? result.status : 400;
+        const statusCode = result && result.status ? parseInt(result.status, 10) : 400;
 
         const socketResponse: {
           totalCount: number;

@@ -285,8 +285,7 @@ $(function() {
 
         }).fail((err) => {
           UTIL.modal.alert(err.responseText);
-        }).always(() => {
-          socket.disconnect();
+          progressRequest.abort();
         });
       };
 

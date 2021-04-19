@@ -67,6 +67,7 @@ $(function() {
       $progressStatus.html(`<div class='fa fa-check fa-2x fa-fw' style='color: #78b13f;'></div>`);
       $progressResult.html(`<a href='${response.url}' target='popup'>${response.url}</a>`);
     } else {
+      // status 406
       // progressRequest.abort();
 
       $progressStatus.html(`<div class='fas fa-exclamation-circle fa-2x fa-fw' style='color:red;'> </div>`);
