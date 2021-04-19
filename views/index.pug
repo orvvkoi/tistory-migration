@@ -1,0 +1,53 @@
+extends layout
+
+include mixins/form
+
+append head
+  link(rel='stylesheet', href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css')
+  link(rel='stylesheet', href='https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.0/skin-awesome/ui.fancytree.min.css')
+  link(rel='stylesheet', href='https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.css')
+  link(rel='stylesheet', href='/css/index.css')
+  link(rel='stylesheet', href='/css/fancytree.css')
+
+  script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.0/jquery.fancytree-all.min.js' )
+  script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.2/jquery.validate.min.js')
+  script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.js')
+  script(src='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/js/fontawesome.min.js' )
+  //script(src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js" )
+  script(src='/socket.io/socket.io.js')
+  script(src='/js/index.js')
+  script(src='/js/socket.js')
+  script(src='/js/util/localStorage.util.js')
+  script(src='/js/util/modal.js')
+  script(src='/js/fancytree/tree.js')
+  script(src='/js/util/ajax.util.js')
+
+block content
+  .wrapper
+    .token-container
+      h2.theme-color Get an Access Token
+      p.text-large.theme-color The user is identified by the information initially entered.
+      form(id="form")
+        p
+          | Client ID:
+          +inputText('clientId', '')(placeholder='Enter Client ID')
+        p
+          | Client Secret:
+          +inputText('clientSecret', '')(placeholder="Enter Client Secret")
+        .button-section
+          button#btnGetToken.btn
+            | Get Access Token
+      .token-list-section
+        h3 Stored Token ID List
+        p.text-large.theme-color
+          |Registered token information is displayed here.
+          if storages
+            ul#tokenList.token-list
+              each storage, index  in storages
+                li #{storage.clientId.slice(0, 15)}
+                  span.asterisk !{storage.clientId.slice(16).replace(/(?<=.{0})./gi, "*")}
+                  span.close(data-id='delToken' data-uuid=storage.uuid) x
+    .tree-container
+      .tree-section
+        div#originTree
+        div#targetTree
