@@ -12,14 +12,14 @@ $(function() {
 
   socket.on('authStatus', function(response) {
     if (response) {
-      const { status, type = '' } = response;
+      const { status, payload } = response;
       if (status > 300) {
-        UTIL.modal.alert(response.message, response.title || '');
+        UTIL.modal.alert(payload.message, payload.title || '');
         return;
       }
 
-      if(type === 'new') {
-        viewRender([response]);
+      if(payload.type === 'new') {
+        tokenStore.dispatch({type: 'NEW_TOKEN', payload:{token: {uuid: payload.uuid, clientId: payload.clientId}}})
       }
     }
   });

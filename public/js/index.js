@@ -13,32 +13,12 @@ const openDialog = function(uri, name, options, closeCallback) {
   return win;
 };
 
-const viewRender = function(tokens) {
-  if (!tokens) {
-    return;
-  }
+const treeSourceHandler  = () => {
+  const { tokens } = tokenStore.getState();
 
-  for (const token of tokens) {
-    const { uuid, clientId } = token;
-    const $tokenSection = $('.token-list-section');
-
-    if (!$tokenSection.find('#tokenList').length) {
-      $tokenSection.append(`<ul id='tokenList' class='token-list'></ul>`);
-    }
-
-    const $tokenList = $('#tokenList');
-    $tokenList.append(
-      $(`<li>${clientId.substring(0, clientId.indexOf('*'))}<span class='asterisk'>${clientId.substring(clientId.indexOf('*'))}</span><span class='close' data-id='delToken' data-uuid='${uuid}'>x</span></li>`).hide().fadeIn('slow'),
-    );
-  }
-
-  treeSourceHandler(tokens);
-};
-
-const treeSourceHandler = function(tokens) {
   const $originTree = $.ui.fancytree.getTree('#originTree');
 
-  if (tokens) {
+  if (tokens && tokens.length) {
     $originTree.options.source = { url: '/api/migration/blogs', cache: false };
   } else {
     $originTree.options.source = [];
@@ -47,10 +27,35 @@ const treeSourceHandler = function(tokens) {
   $originTree.reload();
 };
 
+const viewRender = () => {
+  const { tokens } = tokenStore.getState();
+
+  if(tokens) {
+    $('#tokenList').html(
+      tokens.map(token => {
+        const { uuid, clientId } = token;
+        return `<li data-id='${uuid}'>
+                    ${clientId.substring(0, clientId.indexOf('*'))}
+                    <span class='asterisk'>${clientId.substring(clientId.indexOf('*'))}</span>
+                    <span class='close' data-id='delToken' data-uuid='${uuid}'>x</span>
+                  </li>`
+      })
+    );
+  }
+
+};
+
+const tokenStore = Redux.createStore(
+  tokenReducer
+)
+
+tokenStore.subscribe(viewRender);
+tokenStore.subscribe(treeSourceHandler);
+
 $(function() {
   const req = UTIL.ajax.get('/api/migration/tokens');
   req.done((tokens) => {
-    viewRender(tokens);
+    tokenStore.dispatch({type:'FETCHED_TOKEN_LIST', payload: { tokens } })
   });
 
   const jForm = $('#form');
@@ -142,11 +147,14 @@ $(function() {
 
     req.done(res => {
       if (res.result) {
-        _this.closest('li').hide('slow', function() {
-          _this.remove();
-        });
 
-        treeSourceHandler(res.remainTokenSize);
+        tokenStore.dispatch({
+          type:'DELETE_TOKEN',
+          payload: {
+            uuid: uuid,
+          }
+        })
+
         return;
       }
 

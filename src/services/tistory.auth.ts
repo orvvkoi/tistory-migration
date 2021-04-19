@@ -112,8 +112,10 @@ export default class OAuthService {
       if (callbackErr) {
         this.socket.sockets.to(sessionId).emit('authStatus', {
           status: 400,
-          title: callbackErr,
-          message: callbackErrReason || callbackErrDesc,
+          payload: {
+            title: callbackErr,
+            message: callbackErrReason || callbackErrDesc,
+          }
         });
 
         /**
@@ -162,9 +164,11 @@ export default class OAuthService {
       if (tokenError) {
         this.socket.sockets.to(sessionId).emit('authStatus', {
           status: 400,
-          title: tokenError,
-          message: tokenErrorDesc,
-          uuid: requestUuid
+          payload: {
+            title: tokenError,
+            message: tokenErrorDesc,
+            uuid: requestUuid
+          }
         });
 
         /**
@@ -192,9 +196,11 @@ export default class OAuthService {
 
       this.socket.sockets.to(sessionId).emit('authStatus', {
         status: 200,
-        type: hasAccessToken ? 'renew' : 'new',
-        uuid: requestUuid,
-        clientId: clientId.slice(0, 15) + clientId.slice(16).replace(/(?<=.{0})./gi, "*"),
+        payload:{
+          type: hasAccessToken ? 'renew' : 'new',
+          uuid: requestUuid,
+          clientId: clientId.slice(0, 15) + clientId.slice(16).replace(/(?<=.{0})./gi, "*"),
+        }
       });
 
       const newToken = this.generateToken({

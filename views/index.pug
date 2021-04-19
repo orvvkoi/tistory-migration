@@ -13,8 +13,12 @@ append head
   script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.2/jquery.validate.min.js')
   script(src='https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.js')
   script(src='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/js/fontawesome.min.js' )
+  script(src='https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.0-beta.1/redux.min.js', integrity='sha512-lbCmhqdlJjTzzRbvaHugWpmoDmdqrFW/kmnKyNJH9NiXjKECwiPG6LYc9/iHveXIMyQpMWTo6J8gQXOrmkbe3A==', crossorigin='anonymous')
+
+
   //script(src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js" )
   script(src='/socket.io/socket.io.js')
+  script(src='/js/reducer/token.js')
   script(src='/js/index.js')
   script(src='/js/socket.js')
   script(src='/js/util/localStorage.util.js')
@@ -41,12 +45,12 @@ block content
         h3 Stored Token ID List
         p.text-large.theme-color
           |Registered token information is displayed here.
+          ul#tokenList.token-list
           if storages
-            ul#tokenList.token-list
-              each storage, index  in storages
-                li #{storage.clientId.slice(0, 15)}
-                  span.asterisk !{storage.clientId.slice(16).replace(/(?<=.{0})./gi, "*")}
-                  span.close(data-id='delToken' data-uuid=storage.uuid) x
+            each storage, index  in storages
+              li #{storage.clientId.slice(0, 15)}
+                span.asterisk !{storage.clientId.slice(16).replace(/(?<=.{0})./gi, "*")}
+                span.close(data-id='delToken' data-uuid=storage.uuid) x
     .tree-container
       .tree-section
         div#originTree
